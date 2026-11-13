@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import item_row with context %}
+{% block title %}Próximas ações{% endblock %}
+{% block body %}
+<h1>Próximas ações</h1>
+<p class="filters">
+  <a href="{{ url_for('next_actions') }}" class="{{ '' if ctx else 'on' }}">Todas</a>
+  {% for c in contexts %}<a href="{{ url_for('next_actions', context=c) }}" class="{{ 'on' if ctx == c else '' }}">@{{ c }}</a>{% endfor %}
+  <a href="{{ url_for('next_actions', context='-') }}" class="{{ 'on' if ctx == '-' else '' }}">sem contexto</a>
+</p>
+{% if not items %}<p class="empty">Nenhuma próxima ação aqui.</p>{% endif %}
+<ul class="list">{% for i in items %}{{ item_row(i) }}{% endfor %}</ul>
+{% endblock %}

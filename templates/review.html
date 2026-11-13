@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import post with context %}
+{% block title %}Revisão semanal{% endblock %}
+{% block body %}
+<h1>Revisão semanal</h1>
+<p class="notes">Última revisão: {{ last[:16].replace('T', ' ') if last else 'nunca' }}</p>
+
+<h2>1. Esvaziar a cabeça e o Inbox</h2>
+<p><a href="{{ url_for('inbox') }}">Ir para o Inbox</a>: capture o que estiver solto e esclareça tudo.</p>
+
+<h2>2. Projetos sem próxima ação ({{ stalled|length }})</h2>
+<ul class="list">{% for p in stalled %}
+  <li><a class="title" href="{{ url_for('project_view', project_id=p.id) }}">{{ p.title }}</a></li>
+{% else %}<li class="empty">Todos os projetos ativos têm próxima ação. ✔</li>{% endfor %}</ul>
+
+<h2>3. Aguardando há mais de 7 dias ({{ old_waiting|length }})</h2>
+<ul class="list">{% for i in old_waiting %}
+  <li><span class="title">{{ i.title }}</span> <span class="tag">{{ i.waiting_on or '—' }}</span>
+  <span class="tag">desde {{ i.created_at[:10] }}</span></li>
+{% else %}<li class="empty">Nada para cobrar. ✔</li>{% endfor %}</ul>
+
+<h2>4. Ações com prazo vencido ({{ overdue|length }})</h2>
+<ul class="list">{% for i in overdue %}
+  <li><span class="title">{{ i.title }}</span> <span class="tag late">{{ i.due }}</span></li>
+{% else %}<li class="empty">Nenhuma. ✔</li>{% endfor %}</ul>
+
+<h2>5. Revisar Algum dia / Talvez</h2>
+<p><a href="{{ url_for('someday') }}">Abrir lista</a>: algo merece virar projeto agora?</p>
+
+<form method="post" action="{{ url_for('review_finish') }}">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <button>Concluir revisão</button>
+</form>
+{% endblock %}

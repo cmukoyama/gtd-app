@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import post with context %}
+{% block title %}Inbox{% endblock %}
+{% block body %}
+<h1>Inbox</h1>
+<form method="post" action="{{ url_for('capture') }}" class="capture">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <input type="hidden" name="next" value="/inbox">
+  <textarea name="title" rows="2" placeholder="Capture tudo que está na sua cabeça (uma linha por item)" autofocus></textarea>
+  <button>Capturar</button>
+</form>
+
+{% if not items %}<p class="empty">Inbox zerado. 🎯</p>{% endif %}
+{% for i in items %}
+<form method="post" action="{{ url_for('clarify', item_id=i.id) }}" class="card">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <input type="hidden" name="next" value="/inbox">
+  <input name="title" value="{{ i.title }}" maxlength="300" required>
+  <div class="row">
+    <input name="context" list="ctxs" placeholder="@contexto">
+    <select name="project_id">
+      <option value="">Sem projeto</option>
+      {% for p in projects %}<option value="{{ p.id }}">{{ p.title }}</option>{% endfor %}
+    </select>
+    <input type="date" name="due" title="Prazo">
+    <input name="waiting_on" placeholder="Aguardando de quem?">
+  </div>
+  <textarea name="notes" rows="1" placeholder="Notas"></textarea>
+  <div class="row actions">
+    <button name="decision" value="done" title="Regra dos 2 minutos: fez agora">Fiz (&lt;2min)</button>
+    <button name="decision" value="next">Próxima ação</button>
+    <button name="decision" value="waiting">Aguardando</button>
+    <button name="decision" value="someday">Algum dia</button>
+    <button name="decision" value="trash" class="danger">Lixo</button>
+  </div>
+</form>
+{% endfor %}
+<datalist id="ctxs">{% for c in contexts %}<option value="{{ c }}">{% endfor %}</datalist>
+{% endblock %}

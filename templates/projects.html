@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}Projetos{% endblock %}
+{% block body %}
+<h1>Projetos</h1>
+<form method="post" action="{{ url_for('project_create') }}" class="card">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <input name="title" placeholder="Novo projeto (resultado com mais de 1 passo)" maxlength="200" required>
+  <textarea name="outcome" rows="1" placeholder="Resultado desejado: como saberei que terminou?"></textarea>
+  <button>Criar projeto</button>
+</form>
+<ul class="list">
+{% for p in projects %}
+  <li><a class="title" href="{{ url_for('project_view', project_id=p.id) }}">{{ p.title }}</a>
+    {% if p.n_next == 0 %}<span class="tag late">sem próxima ação</span>
+    {% else %}<span class="tag">{{ p.n_next }} próx.</span>{% endif %}
+    {% if p.n_wait %}<span class="tag">{{ p.n_wait }} aguard.</span>{% endif %}</li>
+{% else %}<li class="empty">Nenhum projeto ativo.</li>{% endfor %}
+</ul>
+{% endblock %}

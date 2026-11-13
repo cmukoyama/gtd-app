@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import item_row, post with context %}
+{% block title %}{{ p.title }}{% endblock %}
+{% block body %}
+<h1>{{ p.title }}</h1>
+{% if p.outcome %}<p class="notes">{{ p.outcome }}</p>{% endif %}
+<form method="post" action="{{ url_for('project_add_action', project_id=p.id) }}" class="capture">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <input name="title" placeholder="Nova próxima ação" maxlength="300" required>
+  <input name="context" list="ctxs" placeholder="@contexto">
+  <button>Adicionar</button>
+</form>
+<datalist id="ctxs">{% for c in contexts %}<option value="{{ c }}">{% endfor %}</datalist>
+<ul class="list">{% for i in items %}{{ item_row(i, False) }}{% else %}<li class="empty">Sem ações abertas.</li>{% endfor %}</ul>
+{% if done_items %}<h2>Concluídas</h2>
+<ul class="list">{% for i in done_items %}<li><span class="title done">{{ i.title }}</span></li>{% endfor %}</ul>{% endif %}
+<p class="actions">
+  {{ post(url_for('project_set', project_id=p.id), 'Concluir projeto', {'status': 'done'}) }}
+  {{ post(url_for('project_set', project_id=p.id), 'Mover p/ Algum dia', {'status': 'someday'}) }}
+</p>
+{% endblock %}

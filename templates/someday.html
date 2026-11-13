@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import post with context %}
+{% block title %}Algum dia{% endblock %}
+{% block body %}
+<h1>Algum dia / Talvez</h1>
+{% if not items and not projects %}<p class="empty">Vazio.</p>{% endif %}
+<ul class="list">
+{% for i in items %}
+  <li><span class="title">{{ i.title }}</span>
+    {{ post(url_for('item_set', item_id=i.id), 'Ativar', {'status': 'next'}) }}
+    {{ post(url_for('item_set', item_id=i.id), 'Lixo', {'status': 'trash'}, 'danger') }}</li>
+{% endfor %}
+</ul>
+{% if projects %}<h2>Projetos adiados</h2>
+<ul class="list">{% for p in projects %}
+  <li><span class="title">{{ p.title }}</span>
+    {{ post(url_for('project_set', project_id=p.id), 'Ativar', {'status': 'active'}) }}</li>
+{% endfor %}</ul>{% endif %}
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import post with context %}
+{% block title %}Concluídas{% endblock %}
+{% block body %}
+<h1>Concluídas</h1>
+<ul class="list">
+{% for i in items %}
+  <li><span class="title done">{{ i.title }}</span>
+    <span class="tag">{{ i.completed_at[:10] }}</span>
+    {% if i.project_title %}<span class="tag proj">{{ i.project_title }}</span>{% endif %}
+    {{ post(url_for('item_set', item_id=i.id), 'Reabrir', {'status': 'next'}) }}</li>
+{% else %}<li class="empty">Nada concluído ainda.</li>{% endfor %}
+</ul>
+{% endblock %}
