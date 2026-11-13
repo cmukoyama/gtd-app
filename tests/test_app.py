@@ -1,17 +1,25 @@
+import os
 import re
 
 import pytest
 
 from app import create_app
 
+PG_URL = os.environ.get("TEST_DATABASE_URL", "")
 
-@pytest.fixture
-def client(tmp_path):
-    app = create_app({"DB_PATH": str(tmp_path / "t.db"), "APP_PASSWORD": "pw",
-                      "SECRET_KEY": "k", "SESSION_COOKIE_SECURE": False,
-                      "TESTING": True})
-    c = app.test_client()
-    return c
+
+@pytest.fixture(params=["sqlite"] + (["postgres"] if PG_URL else []))
+def client(request, tmp_path):
+    cfg = {"DB_PATH": str(tmp_path / "t.db"), "DATABASE_URL": "",
+           "APP_PASSWORD": "pw", "SECRET_KEY": "k",
+           "SESSION_COOKIE_SECURE": False, "TESTING": True}
+    if request.param == "postgres":
+        import psycopg
+        # APAGA as tabelas: use só um banco de teste, nunca o de produção
+        with psycopg.connect(PG_URL, autocommit=True) as c:
+            c.execute("DROP TABLE IF EXISTS items, projects, reviews CASCADE")
+        cfg["DATABASE_URL"] = PG_URL
+    return create_app(cfg).test_client()
 
 
 def token(client, path="/login"):
@@ -95,4 +103,5 @@ def test_html_escaped(client):
 
 def test_refuses_without_secrets(tmp_path):
     with pytest.raises(RuntimeError):
-        create_app({"DB_PATH": str(tmp_path / "a.db"), "APP_PASSWORD": "", "SECRET_KEY": ""})
+        create_app({"DB_PATH": str(tmp_path / "a.db"), "DATABASE_URL": "",
+                    "APP_PASSWORD": "", "SECRET_KEY": ""})

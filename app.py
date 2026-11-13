@@ -14,7 +14,7 @@ DEFAULT_CONTEXTS = ["computador", "telefone", "rua", "casa", "reunião"]
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS projects (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id {pk},
     title TEXT NOT NULL,
     outcome TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'active',      -- active | someday | done
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS projects (
     completed_at TEXT
 );
 CREATE TABLE IF NOT EXISTS items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id {pk},
     title TEXT NOT NULL,
     notes TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'inbox',
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS items (
 CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
 CREATE INDEX IF NOT EXISTS idx_items_project ON items(project_id);
 CREATE TABLE IF NOT EXISTS reviews (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id {pk},
     done_at TEXT NOT NULL
 );
 """
@@ -46,10 +46,52 @@ def now():
     return datetime.now().isoformat(timespec="seconds")
 
 
+class Db:
+    """Camada fina: Postgres (DATABASE_URL, ex. Neon) ou SQLite local (DB_PATH)."""
+
+    def __init__(self, url, path):
+        self.pg = bool(url)
+        if self.pg:
+            import psycopg
+            from psycopg.rows import dict_row
+            # prepare_threshold=None: compatível com o pooler (pgbouncer) do Neon
+            self.conn = psycopg.connect(url, row_factory=dict_row,
+                                        prepare_threshold=None)
+        else:
+            self.conn = sqlite3.connect(path)
+            self.conn.row_factory = sqlite3.Row
+            self.conn.execute("PRAGMA foreign_keys = ON")
+
+    def execute(self, sql, args=()):
+        if self.pg:
+            sql = sql.replace("?", "%s")
+        return self.conn.execute(sql, tuple(args))
+
+    def insert(self, sql, args=()):
+        """INSERT ... e devolve o id gerado."""
+        return self.execute(sql + " RETURNING id", args).fetchone()["id"]
+
+    def commit(self):
+        self.conn.commit()
+
+    def close(self):
+        self.conn.close()
+
+    def init_schema(self):
+        pk = "SERIAL PRIMARY KEY" if self.pg else "INTEGER PRIMARY KEY AUTOINCREMENT"
+        ddl = SCHEMA.format(pk=pk)
+        if self.pg:
+            self.conn.execute(ddl)
+        else:
+            self.conn.executescript(ddl)
+        self.conn.commit()
+
+
 def create_app(config=None):
     app = Flask(__name__)
     app.config.update(
         DB_PATH=os.environ.get("DB_PATH", "gtd.db"),
+        DATABASE_URL=os.environ.get("DATABASE_URL", ""),
         APP_PASSWORD=os.environ.get("APP_PASSWORD", ""),
         SECRET_KEY=os.environ.get("SECRET_KEY", ""),
         SESSION_COOKIE_HTTPONLY=True,
@@ -63,11 +105,14 @@ def create_app(config=None):
         raise RuntimeError("Defina APP_PASSWORD e SECRET_KEY no ambiente.")
 
     # ---------- db ----------
+    schema_ready = {"ok": False}
+
     def db():
         if "db" not in g:
-            g.db = sqlite3.connect(app.config["DB_PATH"])
-            g.db.row_factory = sqlite3.Row
-            g.db.execute("PRAGMA foreign_keys = ON")
+            g.db = Db(app.config["DATABASE_URL"], app.config["DB_PATH"])
+            if not schema_ready["ok"]:
+                g.db.init_schema()
+                schema_ready["ok"] = True
         return g.db
 
     @app.teardown_appcontext
@@ -75,9 +120,6 @@ def create_app(config=None):
         conn = g.pop("db", None)
         if conn is not None:
             conn.close()
-
-    with sqlite3.connect(app.config["DB_PATH"]) as conn:
-        conn.executescript(SCHEMA)
 
     # ---------- auth + csrf ----------
     def login_required(view):
@@ -332,11 +374,11 @@ def create_app(config=None):
         if not title:
             flash("Dê um nome ao projeto.")
             return redirect(url_for("projects"))
-        cur = db().execute(
+        new_id = db().insert(
             "INSERT INTO projects (title, outcome, created_at) VALUES (?, ?, ?)",
             (title, clean(request.form.get("outcome"), 1000), now()))
         db().commit()
-        return redirect(url_for("project_view", project_id=cur.lastrowid))
+        return redirect(url_for("project_view", project_id=new_id))
 
     @app.get("/projects/<int:project_id>")
     @login_required

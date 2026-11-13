@@ -10,20 +10,25 @@ App web pessoal de gestão de tarefas com a metodologia GTD (Flask + SQLite, usu
 - **Revisão semanal**: projetos parados, aguardando há mais de 7 dias, prazos vencidos.
 
 ## Rodar local
+Sem `DATABASE_URL` o app usa SQLite (`gtd.db`), bom para desenvolvimento.
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.txt pytest
 export APP_PASSWORD='sua-senha' SECRET_KEY="$(python -c 'import secrets;print(secrets.token_hex(32))')" INSECURE_COOKIES=1
 python app.py            # http://localhost:8000
 python -m pytest tests
 ```
-`INSECURE_COOKIES=1` só para teste local em http; em produção use HTTPS e não defina.
+`INSECURE_COOKIES=1` só para teste local em http; em produção (https) não defina.
 
-## Hospedar (Docker)
-```bash
-docker build -t gtd-app .
-docker run -p 8000:8000 -v gtd-data:/data \
-  -e APP_PASSWORD=... -e SECRET_KEY=... gtd-app
-```
-O banco fica em `/data/gtd.db`: monte um volume persistente. Em Render, Fly.io ou Railway, defina `APP_PASSWORD` e `SECRET_KEY` como variáveis de ambiente e anexe um disco em `/data`.
+Para testar também contra Postgres, aponte para um banco **de teste** (os testes apagam as tabelas):
+`TEST_DATABASE_URL=postgresql://... python -m pytest tests`
 
-O app recusa iniciar sem `APP_PASSWORD` e `SECRET_KEY`. Faça backup periódico do arquivo `gtd.db`.
+## Deploy na Vercel + Neon
+1. **Neon**: crie um projeto (ou uma branch nova) e copie a connection string **com pooler** (`...-pooler...`).
+2. **Vercel**: *Add New → Project* → importe `gtd-app` (framework: Flask, detectado pelo `app.py`).
+3. Em *Settings → Environment Variables*, defina:
+   - `DATABASE_URL`: a string do Neon;
+   - `APP_PASSWORD`: a senha de acesso;
+   - `SECRET_KEY`: string aleatória longa (`python -c "import secrets;print(secrets.token_hex(32))"`).
+4. Faça o deploy. As tabelas são criadas automaticamente no primeiro acesso.
+
+O app recusa iniciar sem `APP_PASSWORD` e `SECRET_KEY`. Use um banco/branch do Neon só para este app.
