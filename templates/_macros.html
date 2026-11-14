@@ -19,7 +19,7 @@
         {{ i.due[8:10] }}/{{ i.due[5:7] }}</span>{% endif %}
       {% if i.minutes %}<span>{{ i.minutes }} min</span>{% endif %}
       {% if i.waiting_on %}<span>de {{ i.waiting_on }}</span>{% endif %}
-      {% if i.context %}<span class="ctx">@{{ i.context }}</span>{% endif %}
+      {% if i.context %}<span class="ctx {{ i.context|ctx_class }}">@{{ i.context }}</span>{% endif %}
       {% if show_project and i.project_title %}<span class="proj"># {{ i.project_title }}</span>{% endif %}
     </div>
   </div>
@@ -28,4 +28,28 @@
     <a class="edit" href="{{ url_for('item_edit', item_id=i.id, next=request.full_path.rstrip('?')) }}" title="Editar" aria-label="Editar">✎</a>
   </div>
 </li>
+{% endmacro %}
+
+{% macro checklist_block(rows, kind) %}
+{% set total = rows|length %}{% set n_done = rows|selectattr('done_at')|list|length %}
+<p class="notes">{{ n_done }} de {{ total }} concluídos{% if total and n_done == total %} ✔{% endif %}</p>
+<ul class="list checklist">
+{% for r in rows %}
+  <li>{{ post(url_for('checklist_toggle', item_id=r.id), '', {}, 'check' + (' done' if r.done_at else ''), 'Marcar ou desmarcar') }}
+    <span class="title {{ 'done' if r.done_at else '' }}">{{ r.title }}</span></li>
+{% else %}<li class="empty">Checklist vazio.</li>{% endfor %}
+</ul>
+<details class="edit-list">
+  <summary>Editar checklist</summary>
+  <form method="post" action="{{ url_for('checklist_add') }}" class="capture">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <input type="hidden" name="next" value="{{ request.full_path.rstrip('?') }}">
+    <input type="hidden" name="kind" value="{{ kind }}">
+    <input name="title" placeholder="Novo item do checklist" maxlength="200" required>
+    <button>Adicionar</button>
+  </form>
+  <ul class="list">{% for r in rows %}
+    <li><span class="title">{{ r.title }}</span>{{ post(url_for('checklist_delete', item_id=r.id), 'Remover', {}, 'danger') }}</li>
+  {% endfor %}</ul>
+</details>
 {% endmacro %}

@@ -54,3 +54,15 @@ button.check:hover::after { content:"✓"; position:absolute; inset:0; font-size
   .cnt { position:absolute; top:0; right:.1rem; background:var(--lime); color:var(--on-lime); border-radius:99px; padding:0 .3rem; font-size:.65rem; }
   main { padding:1.2rem 1rem 4rem; } h1 { font-size:1.4rem; }
 }
+
+/* cores por contexto: sempre a mesma cor para o mesmo nome */
+.c0{--cbg:#CDE7D3;--cfg:#12432A} .c1{--cbg:#CFE0F5;--cfg:#123B66} .c2{--cbg:#F8D8BD;--cfg:#6B2D07} .c3{--cbg:#E2D3F3;--cfg:#41206A}
+.c4{--cbg:#F5CEDA;--cfg:#6A1530} .c5{--cbg:#F3E6A0;--cfg:#584800} .c6{--cbg:#C6E7E5;--cfg:#0B4744} .c7{--cbg:#DDD0BC;--cfg:#45361F}
+.c8{--cbg:#DADDE3;--cfg:#2B3340} .c9{--cbg:#DDEEB8;--cfg:#2E5809}
+.meta .ctx, .filters a.cx { background:var(--cbg); color:var(--cfg); border:1px solid color-mix(in srgb, var(--cfg) 40%, transparent); font-weight:600; }
+.meta .ctx { border-radius:6px; padding:0 .45rem; }
+.filters a.cx.on { box-shadow:0 0 0 2px var(--acc); }
+/* checklists */
+button.check.done { background:var(--acc); } button.check.done::after { content:"✓"; position:absolute; inset:0; font-size:12px; line-height:16px; color:#fff; text-align:center; }
+.checklist .title { font-size:1rem; } .edit-list { margin-top:1.4rem; color:var(--mut); } .edit-list summary { cursor:pointer; margin-bottom:.5rem; }
+.list.checklist li { flex-wrap:nowrap; align-items:flex-start; gap:.7rem; padding:.7rem .3rem; } .checklist .title { min-width:0; }

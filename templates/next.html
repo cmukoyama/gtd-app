@@ -5,7 +5,7 @@
 <h1>Próximas ações</h1>
 <p class="filters">
   <a href="{{ url_for('next_actions', tempo=tempo) }}" class="{{ '' if ctx else 'on' }}">Todas</a>
-  {% for c in contexts %}<a href="{{ url_for('next_actions', context=c, tempo=tempo) }}" class="{{ 'on' if ctx == c else '' }}">@{{ c }}</a>{% endfor %}
+  {% for c in contexts %}<a href="{{ url_for('next_actions', context=c, tempo=tempo) }}" class="cx {{ c|ctx_class }} {{ 'on' if ctx == c else '' }}">@{{ c }}</a>{% endfor %}
   <a href="{{ url_for('next_actions', context='-', tempo=tempo) }}" class="{{ 'on' if ctx == '-' else '' }}">sem contexto</a>
 </p>
 <p class="filters">Tempo:

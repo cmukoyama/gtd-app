@@ -176,3 +176,63 @@ def test_migrates_old_sqlite_schema(tmp_path):
                     "SECRET_KEY": "k", "SESSION_COOKIE_SECURE": False}).test_client()
     login(c)
     assert "antiga" in c.get("/next").get_data(as_text=True)
+
+
+def test_checklists_seeded_and_toggle(client):
+    t = login(client)
+    daily = client.get("/daily").get_data(as_text=True)
+    assert "Esvaziar o Inbox" in daily and "0 de 6 concluídos" in daily
+    post(client, "/checklist/1/toggle", t, next="/daily")
+    assert "1 de 6 concluídos" in client.get("/daily").get_data(as_text=True)
+    post(client, "/checklist/1/toggle", t, next="/daily")  # desmarca
+    assert "0 de 6 concluídos" in client.get("/daily").get_data(as_text=True)
+    review = client.get("/review").get_data(as_text=True)
+    assert "Checklist da semana" in review and "0 de 10 concluídos" in review
+    assert client.post("/checklist/999/toggle", data={"csrf": t}).status_code == 404
+
+
+def test_checklist_resets_by_period(client, monkeypatch):
+    import datetime as dt
+    import app as appmod
+    t = login(client)
+    daily_id = 1    # daily
+    weekly_id = 7   # primeiro weekly
+    days = {"d": dt.date(2026, 11, 11)}  # quarta-feira
+    monkeypatch.setattr(appmod, "local_today", lambda: days["d"])
+    post(client, f"/checklist/{daily_id}/toggle", t)
+    post(client, f"/checklist/{weekly_id}/toggle", t)
+    days["d"] = dt.date(2026, 11, 12)   # quinta: mesmo semana, outro dia
+    assert "0 de 6 concluídos" in client.get("/daily").get_data(as_text=True)
+    assert "1 de 10 concluídos" in client.get("/review").get_data(as_text=True)
+    days["d"] = dt.date(2026, 11, 16)   # segunda: nova semana
+    assert "0 de 10 concluídos" in client.get("/review").get_data(as_text=True)
+
+
+def test_checklist_add_delete_and_no_reseed(client, tmp_path):
+    t = login(client)
+    post(client, "/checklist/add", t, kind="daily", title="Beber água", next="/daily")
+    assert "Beber água" in client.get("/daily").get_data(as_text=True)
+    assert client.post("/checklist/add", data={"csrf": t, "kind": "x", "title": "y"}).status_code == 400
+    post(client, "/checklist/1/delete", t, next="/daily")
+    assert "Esvaziar o Inbox: capturar" not in client.get("/daily").get_data(as_text=True)
+    # nova instância do app sobre o mesmo banco não recria o item apagado
+    cfg = {k: client.application.config[k] for k in ("DB_PATH", "DATABASE_URL", "APP_PASSWORD", "SECRET_KEY")}
+    cfg.update(SESSION_COOKIE_SECURE=False)
+    c2 = create_app(cfg).test_client()
+    login(c2)
+    assert "Esvaziar o Inbox: capturar" not in c2.get("/daily").get_data(as_text=True)
+
+
+def test_context_colors_stable():
+    from app import ctx_class
+    assert ctx_class("foco") == ctx_class("@Foco") == "c2"
+    assert ctx_class("qualquer-coisa") == ctx_class("qualquer-coisa")
+    assert ctx_class("x").startswith("c") and 0 <= int(ctx_class("xyz")[1:]) <= 9
+
+
+def test_context_class_rendered(client):
+    t = login(client)
+    post(client, "/capture", t, title="falar com LPP")
+    post(client, "/items/1/clarify", t, decision="next", title="falar com LPP", context="conversar")
+    html = client.get("/next").get_data(as_text=True)
+    assert 'class="ctx c3"' in html and "cx c3" in html

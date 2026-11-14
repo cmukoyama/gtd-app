@@ -3,6 +3,7 @@ import hmac
 import os
 import secrets
 import sqlite3
+import zlib
 from datetime import date, datetime, timedelta
 from functools import wraps
 from zoneinfo import ZoneInfo
@@ -11,7 +12,43 @@ from flask import (Flask, abort, flash, g, redirect, render_template, request,
                    session, url_for)
 
 STATUSES = ("inbox", "next", "waiting", "someday", "done", "trash")
-DEFAULT_CONTEXTS = ["computador", "telefone", "rua", "casa", "reunião"]
+DEFAULT_CONTEXTS = ["computador", "telefone", "rua", "casa", "reunião", "foco", "conversar"]
+
+# cada contexto tem sempre a mesma cor (índice da paleta c0..c9 no CSS)
+CONTEXT_COLORS = {"casa": 0, "reunião": 1, "foco": 2, "conversar": 3, "trabalho": 4,
+                  "rápido": 5, "telefone": 6, "rua": 7, "computador": 8, "lpps": 9}
+
+
+def ctx_class(name):
+    key = (name or "").lstrip("@").lower()
+    idx = CONTEXT_COLORS.get(key)
+    if idx is None:
+        idx = zlib.crc32(key.encode()) % 10
+    return f"c{idx}"
+
+
+DEFAULT_CHECKLISTS = {
+    "daily": [
+        "Esvaziar o Inbox: capturar e esclarecer tudo",
+        "Olhar a agenda de hoje e de amanhã",
+        "Escolher as 3 ações de hoje (★)",
+        "Conferir Aguardando: alguém para cobrar hoje?",
+        "Olhar as métricas do produto",
+        "Fechar o dia: o que ficou pendente e por quê?",
+    ],
+    "weekly": [
+        "Esvaziar a cabeça e o Inbox",
+        "Projetos: todos têm próxima ação?",
+        "Aguardando: cobrar o que está parado há mais de 7 dias",
+        "Prazos e agenda das próximas 2 semanas",
+        "Algum dia / Talvez: algo merece virar projeto?",
+        "Conversei com pelo menos 2 stakeholders ou clientes novos?",
+        "Registrei os feedbacks coletados?",
+        "Olhei as métricas e anotei o que mudou?",
+        "Conversei com algum outro LPP?",
+        "Definir os 2 ou 3 projetos em foco da semana",
+    ],
+}
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS projects (
@@ -38,6 +75,19 @@ CREATE TABLE IF NOT EXISTS items (
 );
 CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
 CREATE INDEX IF NOT EXISTS idx_items_project ON items(project_id);
+CREATE TABLE IF NOT EXISTS checklist_items (
+    id {pk},
+    kind TEXT NOT NULL,
+    title TEXT NOT NULL,
+    position INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS checklist_checks (
+    item_id INTEGER NOT NULL REFERENCES checklist_items(id) ON DELETE CASCADE,
+    period TEXT NOT NULL,
+    done_at TEXT NOT NULL,
+    PRIMARY KEY (item_id, period)
+);
+CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS reviews (
     id {pk},
     done_at TEXT NOT NULL
@@ -106,6 +156,16 @@ class Db:
                     self.conn.execute(
                         f"ALTER TABLE items ADD COLUMN {name} "
                         + ("INTEGER" if name == "minutes" else "TEXT"))
+        # checklists padrão: criados uma única vez (apagar um item não o recria)
+        cur = self.execute(
+            "INSERT INTO meta (k, v) VALUES ('checklists_seeded', '1') "
+            "ON CONFLICT (k) DO NOTHING")
+        if cur.rowcount == 1:
+            for kind, titles in DEFAULT_CHECKLISTS.items():
+                for pos, title in enumerate(titles):
+                    self.execute(
+                        "INSERT INTO checklist_items (kind, title, position) VALUES (?, ?, ?)",
+                        (kind, title, pos))
         self.conn.commit()
 
 
@@ -172,6 +232,7 @@ def create_app(config=None):
         return resp
 
     app.jinja_env.globals["csrf_token"] = csrf_token
+    app.jinja_env.filters["ctx_class"] = ctx_class
 
     @app.route("/login", methods=["GET", "POST"])
     def login():
@@ -209,7 +270,12 @@ def create_app(config=None):
         n = db().execute(
             "SELECT COUNT(*) c FROM items WHERE status='next' AND focus_on=?",
             (t,)).fetchone()["c"]
-        return {"counts": counts(), "today": t, "today_count": n}
+        pending = db().execute(
+            """SELECT COUNT(*) c FROM checklist_items i WHERE i.kind='daily' AND NOT EXISTS
+               (SELECT 1 FROM checklist_checks k WHERE k.item_id=i.id AND k.period=?)""",
+            (t,)).fetchone()["c"]
+        return {"counts": counts(), "today": t, "today_count": n,
+                "daily_pending": pending}
 
     def contexts():
         used = [r["context"] for r in db().execute(
@@ -532,6 +598,67 @@ def create_app(config=None):
         db().commit()
         return redirect(url_for("projects"))
 
+    # ---------- checklists (diário / semanal) ----------
+    def period_key(kind):
+        d = local_today()
+        if kind == "weekly":
+            d = d - timedelta(days=d.weekday())  # segunda-feira da semana
+        return d.isoformat()
+
+    def checklist(kind):
+        return db().execute(
+            """SELECT c.id, c.title, k.done_at FROM checklist_items c
+               LEFT JOIN checklist_checks k ON k.item_id = c.id AND k.period = ?
+               WHERE c.kind = ? ORDER BY c.position, c.id""",
+            (period_key(kind), kind)).fetchall()
+
+    @app.post("/checklist/<int:item_id>/toggle")
+    @login_required
+    def checklist_toggle(item_id):
+        row = db().execute("SELECT kind FROM checklist_items WHERE id=?",
+                           (item_id,)).fetchone()
+        if not row:
+            abort(404)
+        pk = period_key(row["kind"])
+        cur = db().execute(
+            "DELETE FROM checklist_checks WHERE item_id=? AND period=?", (item_id, pk))
+        if cur.rowcount == 0:
+            db().execute(
+                "INSERT INTO checklist_checks (item_id, period, done_at) VALUES (?, ?, ?) "
+                "ON CONFLICT DO NOTHING", (item_id, pk, now()))
+        db().commit()
+        return back()
+
+    @app.post("/checklist/add")
+    @login_required
+    def checklist_add():
+        kind = request.form.get("kind", "")
+        title = clean(request.form.get("title"), 200)
+        if kind not in ("daily", "weekly"):
+            abort(400)
+        if title:
+            last = db().execute(
+                "SELECT COALESCE(MAX(position), -1) m FROM checklist_items WHERE kind=?",
+                (kind,)).fetchone()["m"]
+            db().execute(
+                "INSERT INTO checklist_items (kind, title, position) VALUES (?, ?, ?)",
+                (kind, title, last + 1))
+            db().commit()
+        return back()
+
+    @app.post("/checklist/<int:item_id>/delete")
+    @login_required
+    def checklist_delete(item_id):
+        db().execute("DELETE FROM checklist_checks WHERE item_id=?", (item_id,))
+        db().execute("DELETE FROM checklist_items WHERE id=?", (item_id,))
+        db().commit()
+        return back()
+
+    @app.get("/daily")
+    @login_required
+    def daily_view():
+        return render_template("daily.html", rows=checklist("daily"))
+
     # ---------- weekly review ----------
     def review_data():
         d = db()
@@ -553,7 +680,7 @@ def create_app(config=None):
     @login_required
     def review():
         stalled, old_waiting, overdue, last = review_data()
-        return render_template("review.html", stalled=stalled,
+        return render_template("review.html", stalled=stalled, weekly=checklist("weekly"),
                                old_waiting=old_waiting, overdue=overdue, last=last)
 
     @app.post("/review/finish")

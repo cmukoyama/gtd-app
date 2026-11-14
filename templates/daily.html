@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import checklist_block with context %}
+{% block title %}Revisão diária{% endblock %}
+{% block body %}
+<h1>Revisão diária</h1>
+<p class="filters">
+  <a href="{{ url_for('inbox') }}">Inbox: {{ counts.get('inbox', 0) }}</a>
+  <a href="{{ url_for('today_view') }}">Hoje: {{ today_count }}</a>
+  <a href="{{ url_for('waiting') }}">Aguardando: {{ counts.get('waiting', 0) }}</a>
+</p>
+{{ checklist_block(rows, 'daily') }}
+{% endblock %}
