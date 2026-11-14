@@ -282,3 +282,23 @@ def test_contexts_requires_login_and_csrf(client):
     assert client.get("/contexts").status_code == 302
     login(client)
     assert client.post("/contexts/remove", data={"name": "rua"}).status_code == 400
+
+
+def test_api_today_token(client, monkeypatch):
+    t = login(client)
+    a = _next_item(client, t, "ligar para cliente", minutes="15", context="telefone")
+    _next_item(client, t, "fora de hoje")
+    post(client, f"/items/{a}/today", t, on="1", next="/next")
+    anon = client.application.test_client()
+    # sem API_TOKEN configurado, o endpoint não existe
+    monkeypatch.delenv("API_TOKEN", raising=False)
+    assert anon.get("/api/today").status_code == 404
+    monkeypatch.setenv("API_TOKEN", "segredo-123")
+    assert anon.get("/api/today").status_code == 401
+    assert anon.get("/api/today?token=errado").status_code == 401
+    r = anon.get("/api/today", headers={"Authorization": "Bearer segredo-123"})
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["count"] == 1
+    assert data["lines"] == ["ligar para cliente (15 min, @telefone)"]
+    assert anon.get("/api/today?token=segredo-123").get_json()["count"] == 1

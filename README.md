@@ -32,3 +32,13 @@ Para testar também contra Postgres, aponte para um banco **de teste** (os teste
 4. Faça o deploy. As tabelas são criadas automaticamente no primeiro acesso.
 
 O app recusa iniciar sem `APP_PASSWORD` e `SECRET_KEY`. Use um banco/branch do Neon só para este app.
+
+## Tarefas de "Hoje" na tela de bloqueio do iPhone
+
+1. No Vercel, crie a variável `API_TOKEN` (texto longo e aleatório) e faça redeploy.
+2. `GET /api/today` devolve JSON com as tarefas de Hoje (inclui as arrastadas de dias
+   anteriores). Envie o token no cabeçalho `Authorization: Bearer <token>`
+   (ou `?token=<token>`, menos seguro por poder aparecer em logs).
+   Sem `API_TOKEN` o endpoint responde 404.
+3. Um Atalho do iPhone lê esse JSON e recria a lista "Hoje" no app Lembretes, que
+   pode ser exibida pelo widget de Lembretes na tela de bloqueio.

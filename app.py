@@ -8,7 +8,7 @@ from datetime import date, datetime, timedelta
 from functools import wraps
 from zoneinfo import ZoneInfo
 
-from flask import (Flask, abort, flash, g, redirect, render_template, request,
+from flask import (Flask, abort, jsonify, flash, g, redirect, render_template, request,
                    session, url_for)
 
 STATUSES = ("inbox", "next", "waiting", "someday", "done", "trash")
@@ -482,6 +482,38 @@ def create_app(config=None):
             (t,)).fetchall()
         total = sum((i["minutes"] or 0) for i in items)
         return render_template("today.html", items=items, carry=carry, total=total)
+
+    @app.get("/api/today")
+    def api_today():
+        """Tarefas de Hoje em JSON, para o Atalho do iPhone. Exige API_TOKEN."""
+        expected = os.environ.get("API_TOKEN") or app.config.get("API_TOKEN") or ""
+        if not expected:
+            abort(404)
+        auth = request.headers.get("Authorization", "")
+        sent = auth[7:] if auth.startswith("Bearer ") else request.args.get("token", "")
+        if not hmac.compare_digest(sent.encode(), expected.encode()):
+            abort(401)
+        t = local_today().isoformat()
+        rows = db().execute(
+            """SELECT i.*, p.title AS project_title FROM items i
+               LEFT JOIN projects p ON p.id = i.project_id
+               WHERE i.status='next' AND i.focus_on IS NOT NULL AND i.focus_on <= ?
+               ORDER BY (i.focus_on < ?), (i.due IS NULL), i.due, i.id""",
+            (t, t)).fetchall()
+        tasks = []
+        for i in rows:
+            bits = []
+            if i["minutes"]:
+                bits.append(f"{i['minutes']} min")
+            if i["context"]:
+                bits.append("@" + i["context"])
+            text = i["title"] + (f" ({', '.join(bits)})" if bits else "")
+            tasks.append({"id": i["id"], "title": i["title"], "text": text,
+                          "context": i["context"], "minutes": i["minutes"],
+                          "due": i["due"], "project": i["project_title"]})
+        resp = jsonify({"date": t, "count": len(tasks), "tasks": tasks,
+                        "lines": [x["text"] for x in tasks]})
+        return resp
 
     @app.post("/items/<int:item_id>/today")
     @login_required
