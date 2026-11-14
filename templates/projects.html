@@ -6,7 +6,7 @@
   <input type="hidden" name="csrf" value="{{ csrf_token() }}">
   <input name="title" placeholder="Novo projeto (resultado com mais de 1 passo)" maxlength="200" required>
   <textarea name="outcome" rows="1" placeholder="Resultado desejado: como saberei que terminou?"></textarea>
-  <button>Criar projeto</button>
+  <button class="primary">Criar projeto</button>
 </form>
 <ul class="list">
 {% for p in projects %}

@@ -112,13 +112,13 @@ def test_edit_item(client):
     post(client, "/capture", t, title="refinar HU")
     post(client, "/items/1/clarify", t, decision="next", title="refinar HU",
          context="computador")
-    assert "editar" in client.get("/next").get_data(as_text=True)
+    assert "/items/1/edit" in client.get("/next").get_data(as_text=True)
     page = client.get("/items/1/edit?next=/next").get_data(as_text=True)
     assert 'value="refinar HU"' in page
     post(client, "/items/1/edit", t, title="refinar HU para planning", status="next",
          context="@Foco", due="2026-12-01", notes="rever critérios", next="/next")
     html = client.get("/next").get_data(as_text=True)
-    assert "refinar HU para planning" in html and "@foco" in html and "2026-12-01" in html
+    assert "refinar HU para planning" in html and "@foco" in html and "01/12" in html
     post(client, "/items/1/edit", t, title="refinar HU para planning",
          status="waiting", waiting_on="Zé", next="/next")
     assert "Zé" in client.get("/waiting").get_data(as_text=True)

@@ -1,23 +1,31 @@
-{% macro post(url, label, fields={}, cls='') %}
+{% macro post(url, label, fields={}, cls='', title='') %}
 <form method="post" action="{{ url }}" class="inline">
   <input type="hidden" name="csrf" value="{{ csrf_token() }}">
   <input type="hidden" name="next" value="{{ request.full_path.rstrip('?') }}">
   {% for k, v in fields.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
-  <button class="{{ cls }}">{{ label }}</button>
+  <button class="{{ cls }}" {% if title %}title="{{ title }}" aria-label="{{ title }}"{% endif %}>{{ label }}</button>
 </form>
 {% endmacro %}
 
 {% macro item_row(i, show_project=True) %}
-<li>
-  {{ post(url_for('item_set', item_id=i.id), '✓', {'status': 'done'}, 'check') }}
-  <span class="title">{{ i.title }}</span>
-  {% if i.status == 'next' %}{% set on = (i.focus_on == today) %}{{ post(url_for('item_today', item_id=i.id), '★' if on else '☆', {'on': '0' if on else '1'}, 'star') }}{% endif %}
-  <a class="tag" href="{{ url_for('item_edit', item_id=i.id, next=request.full_path.rstrip('?')) }}">editar</a>
-  {% if i.minutes %}<span class="tag">{{ i.minutes }}min</span>{% endif %}
-  {% if i.context %}<span class="tag">@{{ i.context }}</span>{% endif %}
-  {% if show_project and i.project_title %}<span class="tag proj">{{ i.project_title }}</span>{% endif %}
-  {% if i.due %}<span class="tag due{% if i.due < today %} late{% endif %}">{{ i.due }}</span>{% endif %}
-  {% if i.waiting_on %}<span class="tag">de {{ i.waiting_on }}</span>{% endif %}
-  {% if i.notes %}<div class="notes">{{ i.notes }}</div>{% endif %}
+<li class="task">
+  {{ post(url_for('item_set', item_id=i.id), '', {'status': 'done'}, 'check', 'Concluir') }}
+  <div class="body">
+    <div class="t">{{ i.title }}</div>
+    {% if i.notes %}<div class="n">{{ i.notes }}</div>{% endif %}
+    <div class="meta">
+      {% if i.due %}<span class="due {{ 'late' if i.due < today else ('now' if i.due == today else 'later') }}">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+        {{ i.due[8:10] }}/{{ i.due[5:7] }}</span>{% endif %}
+      {% if i.minutes %}<span>{{ i.minutes }} min</span>{% endif %}
+      {% if i.waiting_on %}<span>de {{ i.waiting_on }}</span>{% endif %}
+      {% if i.context %}<span class="ctx">@{{ i.context }}</span>{% endif %}
+      {% if show_project and i.project_title %}<span class="proj"># {{ i.project_title }}</span>{% endif %}
+    </div>
+  </div>
+  <div class="ra">
+    {% if i.status == 'next' %}{% set on = (i.focus_on == today) %}{{ post(url_for('item_today', item_id=i.id), '★' if on else '☆', {'on': '0' if on else '1'}, 'star' + (' on' if on else ''), 'Tirar de hoje' if on else 'Fazer hoje') }}{% endif %}
+    <a class="edit" href="{{ url_for('item_edit', item_id=i.id, next=request.full_path.rstrip('?')) }}" title="Editar" aria-label="Editar">✎</a>
+  </div>
 </li>
 {% endmacro %}

@@ -6,25 +6,46 @@
   <title>{% block title %}GTD{% endblock %}</title>
   <style>{% include 'style.css' %}</style>
 </head>
-<body>
+<body class="{{ '' if session.get('auth') else 'anon' }}">
 {% if session.get('auth') %}
-<nav>
-  <a href="{{ url_for('inbox') }}">Inbox{% if counts.get('inbox') %} <b>{{ counts['inbox'] }}</b>{% endif %}</a>
-  <a href="{{ url_for('today_view') }}">Hoje{% if today_count %} <b>{{ today_count }}</b>{% endif %}</a>
-  <a href="{{ url_for('next_actions') }}">Próximas{% if counts.get('next') %} <b>{{ counts['next'] }}</b>{% endif %}</a>
-  <a href="{{ url_for('projects') }}">Projetos</a>
-  <a href="{{ url_for('waiting') }}">Aguardando{% if counts.get('waiting') %} <b>{{ counts['waiting'] }}</b>{% endif %}</a>
-  <a href="{{ url_for('someday') }}">Algum dia</a>
-  <a href="{{ url_for('review') }}">Revisão</a>
-  <form method="post" action="{{ url_for('logout') }}" class="inline">
+{% set icons = {
+  'inbox': '<path d="M3 13l2.5-8h13L21 13v6H3z"/><path d="M3 13h5l1.5 3h5l1.5-3h5"/>',
+  'today': '<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  'next': '<path d="M9 6h12M9 12h12M9 18h12"/><path d="M3.5 6l1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2"/>',
+  'projects': '<path d="M5 9h15M4 15h15M10.5 3.5l-2 17M16.5 3.5l-2 17"/>',
+  'waiting': '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  'someday': '<path d="M20.5 13.5A8.5 8.5 0 1110.5 3.5a6.5 6.5 0 0010 10z"/>',
+  'review': '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>'
+} %}
+{% set nav_items = [
+  ('inbox', 'Inbox', 'inbox', counts.get('inbox')),
+  ('today_view', 'Hoje', 'today', today_count),
+  ('next_actions', 'Próximas', 'next', counts.get('next')),
+  ('projects', 'Projetos', 'projects', none),
+  ('waiting', 'Aguardando', 'waiting', counts.get('waiting')),
+  ('someday', 'Algum dia', 'someday', none),
+  ('review', 'Revisão', 'review', none)] %}
+<div class="app">
+<aside class="side">
+  <div class="brand">GTD</div>
+  <nav>
+    {% for ep, label, icon, n in nav_items %}
+    <a href="{{ url_for(ep) }}" class="{{ 'on' if request.endpoint == ep or (ep == 'projects' and request.endpoint == 'project_view') else '' }}">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">{{ icons[icon]|safe }}</svg>
+      <span class="lbl">{{ label }}</span>{% if n %}<span class="cnt">{{ n }}</span>{% endif %}
+    </a>
+    {% endfor %}
+  </nav>
+  <form method="post" action="{{ url_for('logout') }}" class="logout">
     <input type="hidden" name="csrf" value="{{ csrf_token() }}">
     <button class="link">Sair</button>
   </form>
-</nav>
+</aside>
 {% endif %}
 <main>
   {% for m in get_flashed_messages() %}<p class="flash">{{ m }}</p>{% endfor %}
   {% block body %}{% endblock %}
 </main>
+{% if session.get('auth') %}</div>{% endif %}
 </body>
 </html>
