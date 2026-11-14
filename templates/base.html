@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}GTD{% endblock %}</title>
+  <title>{% block title %}GTD{% endblock %} · GTD Mukoyama</title>
   <style>{% include 'style.css' %}</style>
 </head>
 <body class="{{ '' if session.get('auth') else 'anon' }}">
@@ -27,7 +27,7 @@
   ('review', 'Revisão', 'review', none)] %}
 <div class="app">
 <aside class="side">
-  <div class="brand">GTD</div>
+  <div class="brand">GTD Mukoyama</div>
   <nav>
     {% for ep, label, icon, n in nav_items %}
     <a href="{{ url_for(ep) }}" class="{{ 'on' if request.endpoint == ep or (ep == 'projects' and request.endpoint == 'project_view') else '' }}">

@@ -1,5 +1,4 @@
-:root { --bg:#fff; --side:#fafafa; --fg:#202020; --mut:#808080; --line:#eee; --hover:#f3f3f3; --acc:#db4c3f; --acc-soft:#fde9e7; --green:#058527; --purple:#692fc2; --card:#fff; }
-@media (prefers-color-scheme: dark) { :root { --bg:#1e1e1e; --side:#282828; --fg:#f0f0f0; --mut:#9b9b9b; --line:#333; --hover:#2f2f2f; --acc:#e2574a; --acc-soft:#3a2523; --green:#4fc26e; --purple:#a98bff; --card:#252525; } }
+:root { --bg:#FBF6EA; --side:#F4ECD8; --fg:#202020; --mut:#7a7466; --line:#E9E1CD; --hover:#EFE6CF; --acc:#db4c3f; --acc-soft:#f9e1d9; --green:#058527; --purple:#692fc2; --card:#fffdf8; }
 * { box-sizing: border-box; }
 body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.4 -apple-system, "Segoe UI", Roboto, system-ui, sans-serif; }
 .app { display:flex; min-height:100vh; }
