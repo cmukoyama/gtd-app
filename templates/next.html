@@ -7,6 +7,7 @@
   <a href="{{ url_for('next_actions', tempo=tempo) }}" class="{{ '' if ctx else 'on' }}">Todas</a>
   {% for c in contexts %}<a href="{{ url_for('next_actions', context=c, tempo=tempo) }}" class="cx {{ c|ctx_class }} {{ 'on' if ctx == c else '' }}">@{{ c }}</a>{% endfor %}
   <a href="{{ url_for('next_actions', context='-', tempo=tempo) }}" class="{{ 'on' if ctx == '-' else '' }}">sem contexto</a>
+  <a href="{{ url_for('contexts_view') }}" title="Adicionar ou remover contextos">⚙ gerenciar</a>
 </p>
 <p class="filters">Tempo:
   <a href="{{ url_for('next_actions', context=ctx or None) }}" class="{{ '' if tempo else 'on' }}">qualquer</a>

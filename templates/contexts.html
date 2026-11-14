@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}Contextos{% endblock %}
+{% block body %}
+<h1>Contextos</h1>
+<p class="notes">Ao remover um contexto, as tarefas que o usavam <b>não são apagadas</b>: apenas ficam sem contexto.</p>
+<form method="post" action="{{ url_for('context_add') }}" class="capture">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <input name="name" placeholder="Novo contexto, ex.: @reunião" maxlength="40" required>
+  <button>Adicionar</button>
+</form>
+<ul class="list">
+{% for c in names %}
+  {% set n = open_counts.get(c, 0) %}
+  <li>
+    <span class="ctx-chip {{ c|ctx_class }}">@{{ c }}</span>
+    <span class="title notes">{{ n }} tarefa{{ '' if n == 1 else 's' }} aberta{{ '' if n == 1 else 's' }}</span>
+    <form method="post" action="{{ url_for('context_remove') }}" class="inline"
+          onsubmit='return confirm({{ ("Remover @" ~ c ~ "? " ~ n ~ " tarefa(s) aberta(s) ficarão sem contexto.")|tojson }})'>
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="name" value="{{ c }}">
+      <button class="danger">Remover</button>
+    </form>
+  </li>
+{% else %}<li class="empty">Nenhum contexto.</li>{% endfor %}
+</ul>
+<p><a href="{{ url_for('next_actions') }}">← Voltar para Próximas</a></p>
+{% endblock %}

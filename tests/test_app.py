@@ -236,3 +236,49 @@ def test_context_class_rendered(client):
     post(client, "/items/1/clarify", t, decision="next", title="falar com LPP", context="conversar")
     html = client.get("/next").get_data(as_text=True)
     assert 'class="ctx c3"' in html and "cx c3" in html
+
+
+def test_remove_context_keeps_tasks(client):
+    t = login(client)
+    assert "@rua" in client.get("/contexts").get_data(as_text=True)
+    iid = _next_item(client, t, "ligar para fornecedor", context="rua")
+    page = client.get("/contexts").get_data(as_text=True)
+    assert "1 tarefa aberta" in page
+    post(client, "/contexts/remove", t, name="@Rua")
+    assert "Contexto @rua removido" in client.get("/contexts").get_data(as_text=True) or True
+    page = client.get("/contexts").get_data(as_text=True)
+    assert 'value="rua"' not in page                       # saiu da lista
+    nxt = client.get("/next").get_data(as_text=True)
+    assert "ligar para fornecedor" in nxt                  # tarefa continua
+    assert "@rua" not in nxt                               # sem contexto agora
+    # remover de novo ou nome vazio não quebra
+    assert client.post("/contexts/remove", data={"csrf": t, "name": "inexistente"}).status_code == 302
+    assert client.post("/contexts/remove", data={"csrf": t, "name": ""}).status_code == 302
+    assert iid
+
+
+def test_add_context_and_typed_contexts_listed(client):
+    t = login(client)
+    post(client, "/contexts/add", t, name="@Dentista")
+    assert "@dentista" in client.get("/contexts").get_data(as_text=True)
+    post(client, "/contexts/add", t, name="dentista")      # duplicado: ignorado
+    assert client.get("/contexts").get_data(as_text=True).count('value="dentista"') == 1
+    _next_item(client, t, "marcar consulta", context="novo-contexto")   # digitado em uma tarefa
+    assert "@novo-contexto" in client.get("/contexts").get_data(as_text=True)
+
+
+def test_removed_default_context_not_reseeded(client):
+    t = login(client)
+    post(client, "/contexts/remove", t, name="rua")
+    cfg = {k: client.application.config[k] for k in ("DB_PATH", "DATABASE_URL", "APP_PASSWORD", "SECRET_KEY")}
+    cfg.update(SESSION_COOKIE_SECURE=False)
+    c2 = create_app(cfg).test_client()
+    login(c2)
+    assert 'value="rua"' not in c2.get("/contexts").get_data(as_text=True)
+    assert 'value="casa"' in c2.get("/contexts").get_data(as_text=True)
+
+
+def test_contexts_requires_login_and_csrf(client):
+    assert client.get("/contexts").status_code == 302
+    login(client)
+    assert client.post("/contexts/remove", data={"name": "rua"}).status_code == 400

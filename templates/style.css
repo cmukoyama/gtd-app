@@ -66,3 +66,4 @@ button.check:hover::after { content:"✓"; position:absolute; inset:0; font-size
 button.check.done { background:var(--acc); } button.check.done::after { content:"✓"; position:absolute; inset:0; font-size:12px; line-height:16px; color:#fff; text-align:center; }
 .checklist .title { font-size:1rem; } .edit-list { margin-top:1.4rem; color:var(--mut); } .edit-list summary { cursor:pointer; margin-bottom:.5rem; }
 .list.checklist li { flex-wrap:nowrap; align-items:flex-start; gap:.7rem; padding:.7rem .3rem; } .checklist .title { min-width:0; }
+.ctx-chip { border-radius:6px; padding:.1rem .6rem; background:var(--cbg); color:var(--cfg); border:1px solid color-mix(in srgb, var(--cfg) 40%, transparent); font-weight:600; }

@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS checklist_checks (
     PRIMARY KEY (item_id, period)
 );
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS contexts (name TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS reviews (
     id {pk},
     done_at TEXT NOT NULL
@@ -166,6 +167,13 @@ class Db:
                     self.execute(
                         "INSERT INTO checklist_items (kind, title, position) VALUES (?, ?, ?)",
                         (kind, title, pos))
+        # contextos padrão: criados uma única vez (remover um não o recria)
+        cur = self.execute(
+            "INSERT INTO meta (k, v) VALUES ('contexts_seeded', '1') "
+            "ON CONFLICT (k) DO NOTHING")
+        if cur.rowcount == 1:
+            for name in DEFAULT_CONTEXTS:
+                self.execute("INSERT INTO contexts (name) VALUES (?) ON CONFLICT DO NOTHING", (name,))
         self.conn.commit()
 
 
@@ -278,9 +286,10 @@ def create_app(config=None):
                 "daily_pending": pending}
 
     def contexts():
+        listed = [r["name"] for r in db().execute("SELECT name FROM contexts")]
         used = [r["context"] for r in db().execute(
             "SELECT DISTINCT context FROM items WHERE context != ''")]
-        return sorted(set(DEFAULT_CONTEXTS) | set(used))
+        return sorted(set(listed) | set(used))
 
     def active_projects():
         return db().execute(
@@ -423,6 +432,39 @@ def create_app(config=None):
              clean_minutes(request.form.get("minutes")), item_id))
         db().commit()
         return back()
+
+    # ---------- contextos ----------
+    @app.get("/contexts")
+    @login_required
+    def contexts_view():
+        rows = db().execute(
+            """SELECT context, COUNT(*) n FROM items
+               WHERE context != '' AND status IN ('inbox','next','waiting','someday')
+               GROUP BY context""").fetchall()
+        open_counts = {r["context"]: r["n"] for r in rows}
+        return render_template("contexts.html", names=contexts(), open_counts=open_counts)
+
+    @app.post("/contexts/add")
+    @login_required
+    def context_add():
+        name = clean_context(request.form.get("name"))
+        if name:
+            db().execute("INSERT INTO contexts (name) VALUES (?) ON CONFLICT DO NOTHING",
+                         (name,))
+            db().commit()
+        return redirect(url_for("contexts_view"))
+
+    @app.post("/contexts/remove")
+    @login_required
+    def context_remove():
+        name = clean_context(request.form.get("name"))
+        if name:
+            # as tarefas não são apagadas: só ficam sem contexto
+            db().execute("UPDATE items SET context='' WHERE context=?", (name,))
+            db().execute("DELETE FROM contexts WHERE name=?", (name,))
+            db().commit()
+            flash(f"Contexto @{name} removido.")
+        return redirect(url_for("contexts_view"))
 
     # ---------- today ----------
     @app.get("/today")
