@@ -4,9 +4,13 @@
 {% block body %}
 <h1>Próximas ações</h1>
 <p class="filters">
-  <a href="{{ url_for('next_actions') }}" class="{{ '' if ctx else 'on' }}">Todas</a>
-  {% for c in contexts %}<a href="{{ url_for('next_actions', context=c) }}" class="{{ 'on' if ctx == c else '' }}">@{{ c }}</a>{% endfor %}
-  <a href="{{ url_for('next_actions', context='-') }}" class="{{ 'on' if ctx == '-' else '' }}">sem contexto</a>
+  <a href="{{ url_for('next_actions', tempo=tempo) }}" class="{{ '' if ctx else 'on' }}">Todas</a>
+  {% for c in contexts %}<a href="{{ url_for('next_actions', context=c, tempo=tempo) }}" class="{{ 'on' if ctx == c else '' }}">@{{ c }}</a>{% endfor %}
+  <a href="{{ url_for('next_actions', context='-', tempo=tempo) }}" class="{{ 'on' if ctx == '-' else '' }}">sem contexto</a>
+</p>
+<p class="filters">Tempo:
+  <a href="{{ url_for('next_actions', context=ctx or None) }}" class="{{ '' if tempo else 'on' }}">qualquer</a>
+  {% for m in minutes_options %}<a href="{{ url_for('next_actions', context=ctx or None, tempo=m) }}" class="{{ 'on' if tempo == m else '' }}">até {{ m }} min</a>{% endfor %}
 </p>
 {% if not items %}<p class="empty">Nenhuma próxima ação aqui.</p>{% endif %}
 <ul class="list">{% for i in items %}{{ item_row(i) }}{% endfor %}</ul>

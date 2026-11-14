@@ -18,6 +18,10 @@
       {% for p in projects %}<option value="{{ p.id }}" {{ 'selected' if i.project_id == p.id else '' }}>{{ p.title }}</option>{% endfor %}
     </select>
     <input type="date" name="due" value="{{ i.due or '' }}" title="Prazo">
+    <select name="minutes" title="Tempo estimado">
+      <option value="">Tempo?</option>
+      {% for m in [5, 15, 30, 60, 120] %}<option value="{{ m }}" {{ 'selected' if i.minutes == m else '' }}>{{ m }} min</option>{% endfor %}
+    </select>
     <input name="waiting_on" value="{{ i.waiting_on }}" placeholder="Aguardando de quem?">
   </div>
   <textarea name="notes" rows="3" placeholder="Notas">{{ i.notes }}</textarea>

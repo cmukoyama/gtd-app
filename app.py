@@ -5,6 +5,7 @@ import secrets
 import sqlite3
 from datetime import date, datetime, timedelta
 from functools import wraps
+from zoneinfo import ZoneInfo
 
 from flask import (Flask, abort, flash, g, redirect, render_template, request,
                    session, url_for)
@@ -30,6 +31,8 @@ CREATE TABLE IF NOT EXISTS items (
     project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
     due TEXT,
     waiting_on TEXT NOT NULL DEFAULT '',
+    minutes INTEGER,
+    focus_on TEXT,
     created_at TEXT NOT NULL,
     completed_at TEXT
 );
@@ -42,8 +45,16 @@ CREATE TABLE IF NOT EXISTS reviews (
 """
 
 
+TZ = ZoneInfo(os.environ.get("APP_TZ", "America/Sao_Paulo"))
+MINUTES = (5, 15, 30, 60, 120)
+
+
 def now():
-    return datetime.now().isoformat(timespec="seconds")
+    return datetime.now(TZ).replace(tzinfo=None).isoformat(timespec="seconds")
+
+
+def local_today():
+    return datetime.now(TZ).date()
 
 
 class Db:
@@ -84,6 +95,17 @@ class Db:
             self.conn.execute(ddl)
         else:
             self.conn.executescript(ddl)
+        # migração de bancos criados antes das colunas minutes/focus_on
+        if self.pg:
+            self.conn.execute("ALTER TABLE items ADD COLUMN IF NOT EXISTS minutes INTEGER")
+            self.conn.execute("ALTER TABLE items ADD COLUMN IF NOT EXISTS focus_on TEXT")
+        else:
+            cols = {r["name"] for r in self.conn.execute("PRAGMA table_info(items)")}
+            for name in ("minutes", "focus_on"):
+                if name not in cols:
+                    self.conn.execute(
+                        f"ALTER TABLE items ADD COLUMN {name} "
+                        + ("INTEGER" if name == "minutes" else "TEXT"))
         self.conn.commit()
 
 
@@ -183,7 +205,11 @@ def create_app(config=None):
     def inject():
         if not session.get("auth"):
             return {}
-        return {"counts": counts(), "today": date.today().isoformat()}
+        t = local_today().isoformat()
+        n = db().execute(
+            "SELECT COUNT(*) c FROM items WHERE status='next' AND focus_on=?",
+            (t,)).fetchone()["c"]
+        return {"counts": counts(), "today": t, "today_count": n}
 
     def contexts():
         used = [r["context"] for r in db().execute(
@@ -209,6 +235,13 @@ def create_app(config=None):
             return date.fromisoformat(value).isoformat()
         except ValueError:
             return None
+
+    def clean_minutes(value):
+        try:
+            v = int(value)
+        except (TypeError, ValueError):
+            return None
+        return v if v in MINUTES else None
 
     def project_id_or_none(value):
         try:
@@ -264,6 +297,7 @@ def create_app(config=None):
         pid = project_id_or_none(request.form.get("project_id"))
         due = clean_date(request.form.get("due"))
         waiting_on = clean(request.form.get("waiting_on"), 100)
+        minutes = clean_minutes(request.form.get("minutes"))
 
         if decision == "next":
             status = "next"
@@ -280,8 +314,9 @@ def create_app(config=None):
         done_at = now() if status == "done" else None
         db().execute(
             """UPDATE items SET title=?, notes=?, status=?, context=?, project_id=?,
-               due=?, waiting_on=?, completed_at=? WHERE id=?""",
-            (title, notes, status, ctx, pid, due, waiting_on, done_at, item_id))
+               due=?, waiting_on=?, minutes=?, completed_at=? WHERE id=?""",
+            (title, notes, status, ctx, pid, due, waiting_on, minutes, done_at,
+             item_id))
         db().commit()
         return back()
 
@@ -314,11 +349,41 @@ def create_app(config=None):
         ctx = "" if status == "someday" else clean_context(request.form.get("context"))
         db().execute(
             """UPDATE items SET title=?, notes=?, status=?, context=?, project_id=?,
-               due=?, waiting_on=? WHERE id=?""",
+               due=?, waiting_on=?, minutes=? WHERE id=?""",
             (title, clean(request.form.get("notes"), 4000), status, ctx,
              project_id_or_none(request.form.get("project_id")),
              clean_date(request.form.get("due")),
-             clean(request.form.get("waiting_on"), 100), item_id))
+             clean(request.form.get("waiting_on"), 100),
+             clean_minutes(request.form.get("minutes")), item_id))
+        db().commit()
+        return back()
+
+    # ---------- today ----------
+    @app.get("/today")
+    @login_required
+    def today_view():
+        t = local_today().isoformat()
+        base = """SELECT i.*, p.title AS project_title FROM items i
+                  LEFT JOIN projects p ON p.id = i.project_id
+                  WHERE i.status='next' AND """
+        items = db().execute(
+            base + "i.focus_on = ? ORDER BY (i.due IS NULL), i.due, i.id", (t,)
+        ).fetchall()
+        carry = db().execute(
+            base + "i.focus_on IS NOT NULL AND i.focus_on < ? ORDER BY i.focus_on, i.id",
+            (t,)).fetchall()
+        total = sum((i["minutes"] or 0) for i in items)
+        return render_template("today.html", items=items, carry=carry, total=total)
+
+    @app.post("/items/<int:item_id>/today")
+    @login_required
+    def item_today(item_id):
+        on = request.form.get("on") == "1"
+        cur = db().execute(
+            "UPDATE items SET focus_on=? WHERE id=? AND status='next'",
+            (local_today().isoformat() if on else None, item_id))
+        if cur.rowcount == 0:
+            abort(404)
         db().commit()
         return back()
 
@@ -336,9 +401,14 @@ def create_app(config=None):
         elif ctx:
             sql += " AND i.context = ?"
             args.append(ctx)
+        tempo = clean_minutes(request.args.get("tempo"))
+        if tempo:
+            sql += " AND i.minutes IS NOT NULL AND i.minutes <= ?"
+            args.append(tempo)
         sql += " ORDER BY (i.due IS NULL), i.due, i.id"
         items = db().execute(sql, args).fetchall()
-        return render_template("next.html", items=items, ctx=ctx,
+        return render_template("next.html", items=items, ctx=ctx, tempo=tempo,
+                               minutes_options=MINUTES,
                                contexts=contexts(), projects=active_projects())
 
     @app.get("/waiting")
@@ -469,13 +539,13 @@ def create_app(config=None):
             """SELECT p.* FROM projects p WHERE p.status='active' AND NOT EXISTS
                (SELECT 1 FROM items i WHERE i.project_id=p.id AND i.status='next')
                ORDER BY p.title""").fetchall()
-        cutoff = (date.today() - timedelta(days=7)).isoformat()
+        cutoff = (local_today() - timedelta(days=7)).isoformat()
         old_waiting = d.execute(
             "SELECT * FROM items WHERE status='waiting' AND created_at < ? ORDER BY created_at",
             (cutoff,)).fetchall()
         overdue = d.execute(
             "SELECT * FROM items WHERE status='next' AND due IS NOT NULL AND due < ? ORDER BY due",
-            (date.today().isoformat(),)).fetchall()
+            (local_today().isoformat(),)).fetchall()
         last = d.execute("SELECT done_at FROM reviews ORDER BY id DESC LIMIT 1").fetchone()
         return stalled, old_waiting, overdue, (last["done_at"] if last else None)
 

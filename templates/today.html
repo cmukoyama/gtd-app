@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import item_row, post with context %}
+{% block title %}Hoje{% endblock %}
+{% block body %}
+<h1>Hoje</h1>
+{% if items %}<p class="notes">{{ items|length }} ação(ões){% if total %} · ~{{ total }} min estimados{% endif %}</p>{% endif %}
+{% if not items %}<p class="empty">Nada escolhido para hoje. Em <a href="{{ url_for('next_actions') }}">Próximas</a>, toque em ☆ nas 3 ações que mais importam.</p>{% endif %}
+<ul class="list">{% for i in items %}{{ item_row(i) }}{% endfor %}</ul>
+{% if carry %}<h2>Ficaram de dias anteriores</h2>
+<ul class="list">{% for i in carry %}
+  <li><span class="title">{{ i.title }}</span>
+    {% if i.minutes %}<span class="tag">{{ i.minutes }}min</span>{% endif %}
+    <span class="tag">{{ i.focus_on }}</span>
+    {{ post(url_for('item_today', item_id=i.id), 'Trazer p/ hoje', {'on': '1'}) }}
+    {{ post(url_for('item_today', item_id=i.id), 'Soltar', {'on': '0'}) }}</li>
+{% endfor %}</ul>{% endif %}
+{% endblock %}

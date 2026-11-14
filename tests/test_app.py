@@ -125,3 +125,54 @@ def test_edit_item(client):
     assert client.post("/items/1/edit", data={"csrf": t, "title": "x",
                        "status": "done"}).status_code == 400
     assert client.get("/items/99/edit").status_code == 404
+
+
+def _next_item(client, t, title="refinar HU", **extra):
+    post(client, "/capture", t, title=title)
+    iid = int(re.findall(r"/items/(\d+)/clarify", client.get("/inbox").get_data(as_text=True))[-1])
+    post(client, f"/items/{iid}/clarify", t, decision="next", title=title, **extra)
+    return iid
+
+
+def test_today_and_minutes(client):
+    t = login(client)
+    a = _next_item(client, t, "tarefa curta", minutes="15", context="foco")
+    b = _next_item(client, t, "tarefa longa", minutes="120")
+    assert "tarefa" not in client.get("/today").get_data(as_text=True).split("<h1>Hoje</h1>")[1].split("</main>")[0].replace("Nada escolhido", "")
+    post(client, f"/items/{a}/today", t, on="1", next="/next")
+    html = client.get("/today").get_data(as_text=True)
+    assert "tarefa curta" in html and "tarefa longa" not in html and "15 min estimados" in html
+    # filtro por tempo
+    short = client.get("/next?tempo=30").get_data(as_text=True)
+    assert "tarefa curta" in short and "tarefa longa" not in short
+    post(client, f"/items/{a}/today", t, on="0", next="/next")
+    assert "tarefa curta" not in client.get("/today").get_data(as_text=True).split("<h1>Hoje</h1>")[1].split("</main>")[0]
+    # tempo inválido é ignorado
+    assert client.get("/next?tempo=abc").status_code == 200
+    # edição altera tempo
+    post(client, f"/items/{b}/edit", t, title="tarefa longa", status="next", minutes="30", next="/next")
+    assert "tarefa longa" in client.get("/next?tempo=30").get_data(as_text=True)
+
+
+def test_today_only_for_next_items(client):
+    t = login(client)
+    post(client, "/capture", t, title="solto")
+    assert client.post("/items/1/today", data={"csrf": t, "on": "1"}).status_code == 404
+
+
+def test_migrates_old_sqlite_schema(tmp_path):
+    import sqlite3
+    path = tmp_path / "old.db"
+    with sqlite3.connect(path) as c:
+        c.executescript("""CREATE TABLE projects (id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL, outcome TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'active',
+            created_at TEXT NOT NULL, completed_at TEXT);
+            CREATE TABLE items (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL,
+            notes TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'inbox',
+            context TEXT NOT NULL DEFAULT '', project_id INTEGER, due TEXT,
+            waiting_on TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, completed_at TEXT);
+            INSERT INTO items (title, status, created_at) VALUES ('antiga', 'next', '2026-01-01T00:00:00');""")
+    c = create_app({"DB_PATH": str(path), "DATABASE_URL": "", "APP_PASSWORD": "pw",
+                    "SECRET_KEY": "k", "SESSION_COOKIE_SECURE": False}).test_client()
+    login(c)
+    assert "antiga" in c.get("/next").get_data(as_text=True)

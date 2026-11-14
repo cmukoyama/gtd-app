@@ -11,7 +11,9 @@
 <li>
   {{ post(url_for('item_set', item_id=i.id), '✓', {'status': 'done'}, 'check') }}
   <span class="title">{{ i.title }}</span>
+  {% if i.status == 'next' %}{% set on = (i.focus_on == today) %}{{ post(url_for('item_today', item_id=i.id), '★' if on else '☆', {'on': '0' if on else '1'}, 'star') }}{% endif %}
   <a class="tag" href="{{ url_for('item_edit', item_id=i.id, next=request.full_path.rstrip('?')) }}">editar</a>
+  {% if i.minutes %}<span class="tag">{{ i.minutes }}min</span>{% endif %}
   {% if i.context %}<span class="tag">@{{ i.context }}</span>{% endif %}
   {% if show_project and i.project_title %}<span class="tag proj">{{ i.project_title }}</span>{% endif %}
   {% if i.due %}<span class="tag due{% if i.due < today %} late{% endif %}">{{ i.due }}</span>{% endif %}

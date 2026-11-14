@@ -23,3 +23,4 @@ button.check { border-radius:50%; width:1.7rem; height:1.7rem; padding:0; color:
 .sub { font-size:.85rem; color:var(--mut); } .empty { color:var(--mut); }
 .filters a { margin-right:.7rem; color:var(--mut); text-decoration:none; } .filters a.on { color:var(--acc); font-weight:600; }
 .flash { background:var(--line); padding:.5rem .8rem; border-radius:6px; }
+button.star { border:0; padding:0 .3rem; color:var(--acc); font-size:1.1rem; }

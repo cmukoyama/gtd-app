@@ -10,6 +10,7 @@
 {% if session.get('auth') %}
 <nav>
   <a href="{{ url_for('inbox') }}">Inbox{% if counts.get('inbox') %} <b>{{ counts['inbox'] }}</b>{% endif %}</a>
+  <a href="{{ url_for('today_view') }}">Hoje{% if today_count %} <b>{{ today_count }}</b>{% endif %}</a>
   <a href="{{ url_for('next_actions') }}">Próximas{% if counts.get('next') %} <b>{{ counts['next'] }}</b>{% endif %}</a>
   <a href="{{ url_for('projects') }}">Projetos</a>
   <a href="{{ url_for('waiting') }}">Aguardando{% if counts.get('waiting') %} <b>{{ counts['waiting'] }}</b>{% endif %}</a>
