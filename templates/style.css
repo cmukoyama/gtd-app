@@ -1,4 +1,4 @@
-:root { --bg:#FBF6EA; --side:#F4ECD8; --fg:#202020; --mut:#5f594c; --line:#E9E1CD; --hover:#EFE6CF; --acc:#1f5130; --acc-soft:#dfeebb; --lime:#a3e635; --on-lime:#1a2e05; --red:#b0281c; --green:#046b20; --purple:#692fc2; --card:#fffdf8; }
+:root { --bg:#F4EBD5; --side:#EADFC4; --fg:#202020; --mut:#5a5444; --line:#D9CCA8; --hover:#E6DAB9; --acc:#1f5130; --acc-soft:#D6E9A6; --lime:#a3e635; --on-lime:#1a2e05; --red:#b0281c; --green:#046b20; --purple:#692fc2; --card:#FDF9EE; }
 * { box-sizing: border-box; }
 body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.4 -apple-system, "Segoe UI", Roboto, system-ui, sans-serif; }
 .app { display:flex; min-height:100vh; }
