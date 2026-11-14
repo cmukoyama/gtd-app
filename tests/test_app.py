@@ -301,4 +301,5 @@ def test_api_today_token(client, monkeypatch):
     data = r.get_json()
     assert data["count"] == 1
     assert data["lines"] == ["ligar para cliente (15 min, @telefone)"]
+    assert data["titles"] == ["ligar para cliente"]
     assert anon.get("/api/today?token=segredo-123").get_json()["count"] == 1

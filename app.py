@@ -512,7 +512,8 @@ def create_app(config=None):
                           "context": i["context"], "minutes": i["minutes"],
                           "due": i["due"], "project": i["project_title"]})
         resp = jsonify({"date": t, "count": len(tasks), "tasks": tasks,
-                        "lines": [x["text"] for x in tasks]})
+                        "lines": [x["text"] for x in tasks],
+                        "titles": [x["title"] for x in tasks]})
         return resp
 
     @app.post("/items/<int:item_id>/today")
