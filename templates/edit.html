@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import post with context %}
+{% block title %}Editar{% endblock %}
+{% block body %}
+<h1>Editar tarefa</h1>
+<form method="post" action="{{ url_for('item_edit_save', item_id=i.id) }}" class="card">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <input type="hidden" name="next" value="{{ next }}">
+  <input name="title" value="{{ i.title }}" maxlength="300" required>
+  <div class="row">
+    <select name="status" title="Lista">
+      {% for v, label in [('next','Próxima ação'),('waiting','Aguardando'),('someday','Algum dia'),('inbox','Inbox')] %}
+      <option value="{{ v }}" {{ 'selected' if i.status == v else '' }}>{{ label }}</option>{% endfor %}
+    </select>
+    <input name="context" list="ctxs" value="{{ i.context }}" placeholder="@contexto">
+    <select name="project_id">
+      <option value="">Sem projeto</option>
+      {% for p in projects %}<option value="{{ p.id }}" {{ 'selected' if i.project_id == p.id else '' }}>{{ p.title }}</option>{% endfor %}
+    </select>
+    <input type="date" name="due" value="{{ i.due or '' }}" title="Prazo">
+    <input name="waiting_on" value="{{ i.waiting_on }}" placeholder="Aguardando de quem?">
+  </div>
+  <textarea name="notes" rows="3" placeholder="Notas">{{ i.notes }}</textarea>
+  <div class="row actions">
+    <button>Salvar</button>
+    <a href="{{ next }}" class="tag" style="text-align:center;padding:.5rem">Cancelar</a>
+  </div>
+</form>
+<datalist id="ctxs">{% for c in contexts %}<option value="{{ c }}">{% endfor %}</datalist>
+<form method="post" action="{{ url_for('item_delete', item_id=i.id) }}" onsubmit="return confirm('Apagar esta tarefa?')">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <input type="hidden" name="next" value="{{ next }}">
+  <button class="danger">Apagar tarefa</button>
+</form>
+{% endblock %}

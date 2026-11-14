@@ -105,3 +105,23 @@ def test_refuses_without_secrets(tmp_path):
     with pytest.raises(RuntimeError):
         create_app({"DB_PATH": str(tmp_path / "a.db"), "DATABASE_URL": "",
                     "APP_PASSWORD": "", "SECRET_KEY": ""})
+
+
+def test_edit_item(client):
+    t = login(client)
+    post(client, "/capture", t, title="refinar HU")
+    post(client, "/items/1/clarify", t, decision="next", title="refinar HU",
+         context="computador")
+    assert "editar" in client.get("/next").get_data(as_text=True)
+    page = client.get("/items/1/edit?next=/next").get_data(as_text=True)
+    assert 'value="refinar HU"' in page
+    post(client, "/items/1/edit", t, title="refinar HU para planning", status="next",
+         context="@Foco", due="2026-12-01", notes="rever critérios", next="/next")
+    html = client.get("/next").get_data(as_text=True)
+    assert "refinar HU para planning" in html and "@foco" in html and "2026-12-01" in html
+    post(client, "/items/1/edit", t, title="refinar HU para planning",
+         status="waiting", waiting_on="Zé", next="/next")
+    assert "Zé" in client.get("/waiting").get_data(as_text=True)
+    assert client.post("/items/1/edit", data={"csrf": t, "title": "x",
+                       "status": "done"}).status_code == 400
+    assert client.get("/items/99/edit").status_code == 404

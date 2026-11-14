@@ -285,6 +285,43 @@ def create_app(config=None):
         db().commit()
         return back()
 
+    # ---------- edit ----------
+    @app.get("/items/<int:item_id>/edit")
+    @login_required
+    def item_edit(item_id):
+        item = db().execute("SELECT * FROM items WHERE id=?", (item_id,)).fetchone()
+        if not item:
+            abort(404)
+        nxt = request.args.get("next", "")
+        if not nxt.startswith("/") or nxt.startswith("//"):
+            nxt = url_for("next_actions")
+        return render_template("edit.html", i=item, next=nxt,
+                               contexts=contexts(), projects=active_projects())
+
+    @app.post("/items/<int:item_id>/edit")
+    @login_required
+    def item_edit_save(item_id):
+        if not db().execute("SELECT 1 FROM items WHERE id=?", (item_id,)).fetchone():
+            abort(404)
+        title = clean(request.form.get("title"), 300)
+        if not title:
+            flash("O título não pode ficar vazio.")
+            return redirect(url_for("item_edit", item_id=item_id,
+                                    next=request.form.get("next", "")))
+        status = request.form.get("status", "next")
+        if status not in ("inbox", "next", "waiting", "someday"):
+            abort(400)
+        ctx = "" if status == "someday" else clean_context(request.form.get("context"))
+        db().execute(
+            """UPDATE items SET title=?, notes=?, status=?, context=?, project_id=?,
+               due=?, waiting_on=? WHERE id=?""",
+            (title, clean(request.form.get("notes"), 4000), status, ctx,
+             project_id_or_none(request.form.get("project_id")),
+             clean_date(request.form.get("due")),
+             clean(request.form.get("waiting_on"), 100), item_id))
+        db().commit()
+        return back()
+
     # ---------- lists ----------
     @app.get("/next")
     @login_required
