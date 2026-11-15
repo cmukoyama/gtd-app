@@ -39,7 +39,7 @@ button.check { width:20px; height:20px; min-width:20px; padding:0; border-radius
 button.check:hover::after { content:"✓"; position:absolute; inset:0; font-size:12px; line-height:16px; color:var(--acc); text-align:center; }
 .ra { display:flex; gap:.2rem; align-items:center; opacity:.0; transition:opacity .1s; } .task:hover .ra, .task:focus-within .ra { opacity:1; }
 @media (hover:none) { .ra { opacity:1; } }
-.ra a.edit, button.star { border:0; background:none; color:var(--mut); padding:.1rem .3rem; font-size:1.05rem; text-decoration:none; cursor:pointer; } button.star.on { color:var(--acc); }
+.ra a.edit, button.star { border:0; background:none; color:var(--mut); padding:.2rem .5rem; font-size:1.7rem; line-height:1; min-width:2.4rem; min-height:2.4rem; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; cursor:pointer; } button.star.on { color:var(--acc); }
 .title { flex:1 1 auto; color:var(--fg); text-decoration:none; } .title.done { text-decoration:line-through; color:var(--mut); }
 .tag { font-size:.85rem; font-weight:500; color:var(--mut); background:var(--hover); border-radius:6px; padding:.05rem .45rem; text-decoration:none; } .tag.late { color:var(--red); }
 .notes { color:var(--mut); font-size:.88rem; white-space:pre-wrap; }
