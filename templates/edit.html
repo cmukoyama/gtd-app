@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from '_macros.html' import post with context %}
+{% from '_macros.html' import post, ctx_select with context %}
 {% block title %}Editar{% endblock %}
 {% block body %}
 <h1>Editar tarefa</h1>
@@ -12,7 +12,7 @@
       {% for v, label in [('next','Próxima ação'),('waiting','Aguardando'),('someday','Algum dia'),('inbox','Inbox')] %}
       <option value="{{ v }}" {{ 'selected' if i.status == v else '' }}>{{ label }}</option>{% endfor %}
     </select>
-    <select name="context"><option value="">Sem contexto</option>{% for c in contexts %}<option value="{{ c }}"{{ " selected" if c == i.context else "" }}>@{{ c }}</option>{% endfor %}</select>
+    {{ ctx_select(contexts, i.context, 'Sem contexto') }}
     <select name="project_id">
       <option value="">Sem projeto</option>
       {% for p in projects %}<option value="{{ p.id }}" {{ 'selected' if i.project_id == p.id else '' }}>{{ p.title }}</option>{% endfor %}

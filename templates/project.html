@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from '_macros.html' import item_row, post with context %}
+{% from '_macros.html' import item_row, post, ctx_select with context %}
 {% block title %}{{ p.title }}{% endblock %}
 {% block body %}
 <h1>{{ p.title }}</h1>
@@ -7,7 +7,7 @@
 <form method="post" action="{{ url_for('project_add_action', project_id=p.id) }}" class="capture">
   <input type="hidden" name="csrf" value="{{ csrf_token() }}">
   <input name="title" placeholder="Nova próxima ação" maxlength="300" required>
-  <select name="context"><option value="">Contexto?</option>{% for c in contexts %}<option value="{{ c }}">@{{ c }}</option>{% endfor %}</select>
+  {{ ctx_select(contexts) }}
   <button>Adicionar</button>
 </form>
 <ul class="list">{% for i in items %}{{ item_row(i, False) }}{% else %}<li class="empty">Sem ações abertas.</li>{% endfor %}</ul>

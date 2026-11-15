@@ -53,3 +53,14 @@
   {% endfor %}</ul>
 </details>
 {% endmacro %}
+
+{% macro ctx_select(contexts, current='', empty='Contexto?') %}
+<span class="ctxsel">
+  <select name="context" onchange="var n=this.parentNode.querySelector('.ctxnew');var on=this.value==='__new__';n.hidden=!on;n.required=on;if(on)n.focus();">
+    <option value="">{{ empty }}</option>
+    {% for c in contexts %}<option value="{{ c }}"{{ ' selected' if c == current else '' }}>@{{ c }}</option>{% endfor %}
+    <option value="__new__">+ novo contexto…</option>
+  </select>
+  <input name="context_new" class="ctxnew" placeholder="nome do novo contexto" maxlength="40" hidden>
+</span>
+{% endmacro %}

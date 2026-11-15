@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from '_macros.html' import post with context %}
+{% from '_macros.html' import post, ctx_select with context %}
 {% block title %}Inbox{% endblock %}
 {% block body %}
 <h1>Inbox</h1>
@@ -17,7 +17,7 @@
   <input type="hidden" name="next" value="/inbox">
   <input name="title" value="{{ i.title }}" maxlength="300" required>
   <div class="row">
-    <select name="context"><option value="">Contexto?</option>{% for c in contexts %}<option value="{{ c }}">@{{ c }}</option>{% endfor %}</select>
+    {{ ctx_select(contexts) }}
     <select name="project_id">
       <option value="">Sem projeto</option>
       {% for p in projects %}<option value="{{ p.id }}">{{ p.title }}</option>{% endfor %}

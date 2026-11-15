@@ -299,6 +299,13 @@ def create_app(config=None):
     def clean(value, limit=500):
         return (value or "").strip()[:limit]
 
+    def form_context():
+        """Contexto do formulário: seleção ou, se escolhido '+ novo', o texto digitado."""
+        v = request.form.get("context", "")
+        if v == "__new__":
+            v = request.form.get("context_new", "")
+        return clean_context(v)
+
     def clean_context(value):
         return clean(value, 40).lstrip("@").lower()
 
@@ -368,7 +375,7 @@ def create_app(config=None):
             flash("O título não pode ficar vazio.")
             return back()
         notes = clean(request.form.get("notes"), 4000)
-        ctx = clean_context(request.form.get("context"))
+        ctx = form_context()
         pid = project_id_or_none(request.form.get("project_id"))
         due = clean_date(request.form.get("due"))
         waiting_on = clean(request.form.get("waiting_on"), 100)
@@ -421,7 +428,7 @@ def create_app(config=None):
         status = request.form.get("status", "next")
         if status not in ("inbox", "next", "waiting", "someday"):
             abort(400)
-        ctx = "" if status == "someday" else clean_context(request.form.get("context"))
+        ctx = "" if status == "someday" else form_context()
         db().execute(
             """UPDATE items SET title=?, notes=?, status=?, context=?, project_id=?,
                due=?, waiting_on=?, minutes=? WHERE id=?""",
@@ -654,7 +661,7 @@ def create_app(config=None):
             db().execute(
                 """INSERT INTO items (title, status, context, project_id, created_at)
                    VALUES (?, 'next', ?, ?, ?)""",
-                (title, clean_context(request.form.get("context")), project_id, now()))
+                (title, form_context(), project_id, now()))
             db().commit()
         return redirect(url_for("project_view", project_id=project_id))
 

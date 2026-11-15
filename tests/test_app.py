@@ -303,3 +303,14 @@ def test_api_today_token(client, monkeypatch):
     assert data["lines"] == ["ligar para cliente (15 min, @telefone)"]
     assert data["titles"] == ["ligar para cliente"]
     assert anon.get("/api/today?token=segredo-123").get_json()["count"] == 1
+
+
+def test_new_context_from_form(client):
+    t = login(client)
+    post(client, "/capture", t, title="reformar portas")
+    post(client, "/items/1/clarify", t, decision="next", title="reformar portas", context="__new__",
+         context_new="@Obra", next="/next")
+    html = client.get("/next").get_data(as_text=True)
+    assert "@obra" in html
+    # a seleção aparece no formulário de edição com o novo contexto
+    assert 'value="obra"' in client.get("/items/1/edit").get_data(as_text=True)
