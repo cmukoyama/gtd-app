@@ -15,6 +15,7 @@ main { flex:1; max-width:820px; width:100%; margin:0 auto; padding:2.2rem 2rem 4
 body.anon main { max-width:340px; padding-top:20vh; }
 h1 { font-size:1.65rem; font-weight:700; margin:0 0 1rem; } h2 { font-size:1rem; font-weight:700; margin:1.8rem 0 .3rem; padding-bottom:.35rem; border-bottom:1px solid var(--line); }
 a { color:var(--acc); }
+select { max-width:100%; min-width:0; }
 input, select, textarea, button { font:inherit; color:inherit; background:var(--card); border:1px solid var(--line); border-radius:8px; padding:.45rem .65rem; }
 input:focus, select:focus, textarea:focus { outline:2px solid var(--acc-soft); border-color:var(--acc); }
 textarea, input[name=title], input[type=password] { width:100%; }

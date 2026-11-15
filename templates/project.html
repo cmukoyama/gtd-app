@@ -7,10 +7,9 @@
 <form method="post" action="{{ url_for('project_add_action', project_id=p.id) }}" class="capture">
   <input type="hidden" name="csrf" value="{{ csrf_token() }}">
   <input name="title" placeholder="Nova próxima ação" maxlength="300" required>
-  <input name="context" list="ctxs" placeholder="@contexto">
+  <select name="context"><option value="">Contexto?</option>{% for c in contexts %}<option value="{{ c }}">@{{ c }}</option>{% endfor %}</select>
   <button>Adicionar</button>
 </form>
-<datalist id="ctxs">{% for c in contexts %}<option value="{{ c }}">{% endfor %}</datalist>
 <ul class="list">{% for i in items %}{{ item_row(i, False) }}{% else %}<li class="empty">Sem ações abertas.</li>{% endfor %}</ul>
 {% if done_items %}<h2>Concluídas</h2>
 <ul class="list">{% for i in done_items %}<li><span class="title done">{{ i.title }}</span></li>{% endfor %}</ul>{% endif %}

@@ -17,7 +17,7 @@
   <input type="hidden" name="next" value="/inbox">
   <input name="title" value="{{ i.title }}" maxlength="300" required>
   <div class="row">
-    <input name="context" list="ctxs" placeholder="@contexto">
+    <select name="context"><option value="">Contexto?</option>{% for c in contexts %}<option value="{{ c }}">@{{ c }}</option>{% endfor %}</select>
     <select name="project_id">
       <option value="">Sem projeto</option>
       {% for p in projects %}<option value="{{ p.id }}">{{ p.title }}</option>{% endfor %}
@@ -39,5 +39,4 @@
   </div>
 </form>
 {% endfor %}
-<datalist id="ctxs">{% for c in contexts %}<option value="{{ c }}">{% endfor %}</datalist>
 {% endblock %}
