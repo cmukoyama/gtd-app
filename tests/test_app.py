@@ -329,3 +329,32 @@ def test_favorites_first_in_next(client):
     post(client, f"/items/{c}/today", t, on="0", next="/next")
     html = client.get("/next").get_data(as_text=True)
     assert html.index("primeira") < html.index("terceira")
+
+
+def test_multiple_contexts(client):
+    t = login(client)
+    a = _next_item(client, t, "montar apresentação")
+    b = _next_item(client, t, "ligar para cliente")
+    # edita: dois contextos marcados + um novo digitado
+    r = client.post(f"/items/{a}/edit", data={
+        "csrf": t, "title": "montar apresentação", "status": "next",
+        "context": ["trabalho", "foco"], "context_new": "Deck", "next": "/next"},
+        follow_redirects=True)
+    assert r.status_code == 200
+    client.post(f"/items/{b}/edit", data={
+        "csrf": t, "title": "ligar para cliente", "status": "next",
+        "context": ["trabalho"], "next": "/next"})
+    html = client.get("/next").get_data(as_text=True)
+    assert "@deck" in html and "@foco" in html and "@trabalho" in html
+    # filtro por um dos contextos mostra as tarefas que o têm, mesmo com outros
+    foco = client.get("/next?context=foco").get_data(as_text=True)
+    assert "montar apresentação" in foco and "ligar para cliente" not in foco
+    trab = client.get("/next?context=trabalho").get_data(as_text=True)
+    assert "montar apresentação" in trab and "ligar para cliente" in trab
+    # o formulário de edição vem com as caixas marcadas
+    form = client.get(f"/items/{a}/edit").get_data(as_text=True)
+    assert 'value="foco" checked' in form and 'value="trabalho" checked' in form
+    # remover um contexto tira só ele
+    post(client, "/contexts/remove", t, name="foco")
+    html = client.get("/next").get_data(as_text=True)
+    assert "@foco" not in html and "@trabalho" in html and "@deck" in html

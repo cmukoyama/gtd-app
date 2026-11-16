@@ -12,7 +12,7 @@
       {% for v, label in [('next','Próxima ação'),('waiting','Aguardando'),('someday','Algum dia'),('inbox','Inbox')] %}
       <option value="{{ v }}" {{ 'selected' if i.status == v else '' }}>{{ label }}</option>{% endfor %}
     </select>
-    {{ ctx_select(contexts, i.context, 'Sem contexto') }}
+    {{ ctx_select(contexts, i.context) }}
     <select name="project_id">
       <option value="">Sem projeto</option>
       {% for p in projects %}<option value="{{ p.id }}" {{ 'selected' if i.project_id == p.id else '' }}>{{ p.title }}</option>{% endfor %}

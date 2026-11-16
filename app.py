@@ -19,6 +19,11 @@ CONTEXT_COLORS = {"casa": 0, "reunião": 1, "foco": 2, "conversar": 3, "trabalho
                   "rápido": 5, "telefone": 6, "rua": 7, "computador": 8, "lpps": 9}
 
 
+def ctx_list(value):
+    """'foco,trabalho' -> ['foco', 'trabalho'] (vários contextos por tarefa)."""
+    return [c for c in (value or "").split(",") if c]
+
+
 def ctx_class(name):
     key = (name or "").lstrip("@").lower()
     idx = CONTEXT_COLORS.get(key)
@@ -241,6 +246,7 @@ def create_app(config=None):
 
     app.jinja_env.globals["csrf_token"] = csrf_token
     app.jinja_env.filters["ctx_class"] = ctx_class
+    app.jinja_env.filters["ctx_list"] = ctx_list
 
     @app.route("/login", methods=["GET", "POST"])
     def login():
@@ -287,8 +293,9 @@ def create_app(config=None):
 
     def contexts():
         listed = [r["name"] for r in db().execute("SELECT name FROM contexts")]
-        used = [r["context"] for r in db().execute(
-            "SELECT DISTINCT context FROM items WHERE context != ''")]
+        used = [c for r in db().execute(
+            "SELECT DISTINCT context FROM items WHERE context != ''")
+            for c in ctx_list(r["context"])]
         return sorted(set(listed) | set(used))
 
     def active_projects():
@@ -300,14 +307,17 @@ def create_app(config=None):
         return (value or "").strip()[:limit]
 
     def form_context():
-        """Contexto do formulário: seleção ou, se escolhido '+ novo', o texto digitado."""
-        v = request.form.get("context", "")
-        if v == "__new__":
-            v = request.form.get("context_new", "")
-        return clean_context(v)
+        """Contextos do formulário (caixas marcadas + campo de novo contexto),
+        guardados como 'a,b' em ordem alfabética, sem repetição."""
+        names = list(request.form.getlist("context"))
+        names += request.form.get("context_new", "").replace(" ", ",").split(",")
+        out = {clean_context(n) for n in names}
+        out.discard("")
+        out.discard("__new__")
+        return ",".join(sorted(out))
 
     def clean_context(value):
-        return clean(value, 40).lstrip("@").lower()
+        return clean(value, 40).lstrip("@").lower().replace(",", "").replace("%", "")
 
     def clean_date(value):
         value = (value or "").strip()
@@ -445,10 +455,12 @@ def create_app(config=None):
     @login_required
     def contexts_view():
         rows = db().execute(
-            """SELECT context, COUNT(*) n FROM items
-               WHERE context != '' AND status IN ('inbox','next','waiting','someday')
-               GROUP BY context""").fetchall()
-        open_counts = {r["context"]: r["n"] for r in rows}
+            """SELECT context FROM items
+               WHERE context != '' AND status IN ('inbox','next','waiting','someday')""").fetchall()
+        open_counts = {}
+        for r in rows:
+            for c in ctx_list(r["context"]):
+                open_counts[c] = open_counts.get(c, 0) + 1
         return render_template("contexts.html", names=contexts(), open_counts=open_counts)
 
     @app.post("/contexts/add")
@@ -466,8 +478,13 @@ def create_app(config=None):
     def context_remove():
         name = clean_context(request.form.get("name"))
         if name:
-            # as tarefas não são apagadas: só ficam sem contexto
-            db().execute("UPDATE items SET context='' WHERE context=?", (name,))
+            # as tarefas não são apagadas: só perdem esse contexto
+            for r in db().execute(
+                    "SELECT id, context FROM items WHERE context != ''").fetchall():
+                cur = ctx_list(r["context"])
+                if name in cur:
+                    db().execute("UPDATE items SET context=? WHERE id=?",
+                                 (",".join(c for c in cur if c != name), r["id"]))
             db().execute("DELETE FROM contexts WHERE name=?", (name,))
             db().commit()
             flash(f"Contexto @{name} removido.")
@@ -513,10 +530,11 @@ def create_app(config=None):
             if i["minutes"]:
                 bits.append(f"{i['minutes']} min")
             if i["context"]:
-                bits.append("@" + i["context"])
+                bits.append(" ".join("@" + c for c in ctx_list(i["context"])))
             text = i["title"] + (f" ({', '.join(bits)})" if bits else "")
             tasks.append({"id": i["id"], "title": i["title"], "text": text,
-                          "context": i["context"], "minutes": i["minutes"],
+                          "context": i["context"], "contexts": ctx_list(i["context"]),
+                          "minutes": i["minutes"],
                           "due": i["due"], "project": i["project_title"]})
         resp = jsonify({"date": t, "count": len(tasks), "tasks": tasks,
                         "lines": [x["text"] for x in tasks],
@@ -544,11 +562,6 @@ def create_app(config=None):
                   LEFT JOIN projects p ON p.id = i.project_id
                   WHERE i.status='next'""")
         args = []
-        if ctx == "-":
-            sql += " AND i.context = ''"
-        elif ctx:
-            sql += " AND i.context = ?"
-            args.append(ctx)
         tempo = clean_minutes(request.args.get("tempo"))
         if tempo:
             sql += " AND i.minutes IS NOT NULL AND i.minutes <= ?"
@@ -558,6 +571,10 @@ def create_app(config=None):
                 " (i.due IS NULL), i.due, i.id")
         args.append(local_today().isoformat())
         items = db().execute(sql, args).fetchall()
+        if ctx == "-":
+            items = [i for i in items if not i["context"]]
+        elif ctx:
+            items = [i for i in items if ctx in ctx_list(i["context"])]
         return render_template("next.html", items=items, ctx=ctx, tempo=tempo,
                                minutes_options=MINUTES,
                                contexts=contexts(), projects=active_projects())

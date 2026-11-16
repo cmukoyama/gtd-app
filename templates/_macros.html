@@ -19,7 +19,7 @@
         {{ i.due[8:10] }}/{{ i.due[5:7] }}</span>{% endif %}
       {% if i.minutes %}<span>{{ i.minutes }} min</span>{% endif %}
       {% if i.waiting_on %}<span>de {{ i.waiting_on }}</span>{% endif %}
-      {% if i.context %}<span class="ctx {{ i.context|ctx_class }}">@{{ i.context }}</span>{% endif %}
+      {% for c in i.context|ctx_list %}<span class="ctx {{ c|ctx_class }}">@{{ c }}</span>{% endfor %}
       {% if show_project and i.project_title %}<span class="proj"># {{ i.project_title }}</span>{% endif %}
     </div>
   </div>
@@ -54,13 +54,10 @@
 </details>
 {% endmacro %}
 
-{% macro ctx_select(contexts, current='', empty='Contexto?') %}
-<span class="ctxsel">
-  <select name="context" onchange="var n=this.parentNode.querySelector('.ctxnew');var on=this.value==='__new__';n.hidden=!on;n.required=on;if(on)n.focus();">
-    <option value="">{{ empty }}</option>
-    {% for c in contexts %}<option value="{{ c }}"{{ ' selected' if c == current else '' }}>@{{ c }}</option>{% endfor %}
-    <option value="__new__">+ novo contexto…</option>
-  </select>
-  <input name="context_new" class="ctxnew" placeholder="nome do novo contexto" maxlength="40" hidden>
-</span>
+{% macro ctx_select(contexts, current='') %}
+{% set cur = current|ctx_list %}
+<div class="ctxpick">
+  {% for c in contexts %}<label class="cx {{ c|ctx_class }}"><input type="checkbox" name="context" value="{{ c }}"{{ ' checked' if c in cur else '' }}><span>@{{ c }}</span></label>{% endfor %}
+  <input name="context_new" class="ctxnew" placeholder="+ novo contexto" maxlength="40" autocapitalize="none">
+</div>
 {% endmacro %}

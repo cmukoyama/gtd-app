@@ -69,5 +69,10 @@ button.check.done { background:var(--acc); } button.check.done::after { content:
 .list.checklist li { flex-wrap:nowrap; align-items:flex-start; gap:.7rem; padding:.7rem .3rem; } .checklist .title { min-width:0; }
 .ctx-chip { border-radius:6px; padding:.1rem .6rem; background:var(--cbg); color:var(--cfg); border:1px solid color-mix(in srgb, var(--cfg) 40%, transparent); font-weight:600; }
 
-.ctxsel { display:contents; }
-.ctxnew[hidden] { display:none; }
+.ctxpick { display:flex; flex-wrap:wrap; gap:.4rem; align-items:center; flex:1 1 100%; }
+.ctxpick label.cx { cursor:pointer; }
+.ctxpick label.cx input { position:absolute; opacity:0; width:0; height:0; }
+.ctxpick label.cx span { display:inline-block; padding:.35rem .8rem; border-radius:999px; background:transparent; color:var(--mut); border:1px dashed var(--line); font-weight:600; }
+.ctxpick label.cx input:checked + span { background:var(--cbg); color:var(--cfg); border:1px solid color-mix(in srgb, var(--cfg) 55%, transparent); box-shadow:0 0 0 2px var(--acc); }
+.ctxpick label.cx input:focus-visible + span { outline:2px solid var(--acc); }
+.ctxpick .ctxnew { flex:1 1 9rem; min-width:0; }
