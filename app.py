@@ -553,7 +553,10 @@ def create_app(config=None):
         if tempo:
             sql += " AND i.minutes IS NOT NULL AND i.minutes <= ?"
             args.append(tempo)
-        sql += " ORDER BY (i.due IS NULL), i.due, i.id"
+        # favoritas (★ de hoje) primeiro; depois por prazo e ordem de criação
+        sql += (" ORDER BY (CASE WHEN i.focus_on = ? THEN 0 ELSE 1 END),"
+                " (i.due IS NULL), i.due, i.id")
+        args.append(local_today().isoformat())
         items = db().execute(sql, args).fetchall()
         return render_template("next.html", items=items, ctx=ctx, tempo=tempo,
                                minutes_options=MINUTES,

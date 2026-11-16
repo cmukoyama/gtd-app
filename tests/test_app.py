@@ -314,3 +314,18 @@ def test_new_context_from_form(client):
     assert "@obra" in html
     # a seleção aparece no formulário de edição com o novo contexto
     assert 'value="obra"' in client.get("/items/1/edit").get_data(as_text=True)
+
+
+def test_favorites_first_in_next(client):
+    t = login(client)
+    a = _next_item(client, t, "primeira")
+    b = _next_item(client, t, "segunda")
+    c = _next_item(client, t, "terceira")
+    html = client.get("/next").get_data(as_text=True)
+    assert html.index("primeira") < html.index("segunda") < html.index("terceira")
+    post(client, f"/items/{c}/today", t, on="1", next="/next")
+    html = client.get("/next").get_data(as_text=True)
+    assert html.index("terceira") < html.index("primeira") < html.index("segunda")
+    post(client, f"/items/{c}/today", t, on="0", next="/next")
+    html = client.get("/next").get_data(as_text=True)
+    assert html.index("primeira") < html.index("terceira")
