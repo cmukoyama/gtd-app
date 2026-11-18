@@ -6,7 +6,8 @@
 <ul class="list">
 {% for i in items %}
   <li><span class="title done">{{ i.title }}</span>
-    <span class="tag">{{ i.completed_at[:10] }}</span>
+    <span class="tag">{{ i.completed_at[8:10] }}/{{ i.completed_at[5:7] }} {{ i.completed_at[11:16] }}</span>
+    {% for c in i.context|ctx_list %}<span class="ctx {{ c|ctx_class }}">@{{ c }}</span>{% endfor %}
     {% if i.project_title %}<span class="tag proj">{{ i.project_title }}</span>{% endif %}
     {{ post(url_for('item_set', item_id=i.id), 'Reabrir', {'status': 'next'}) }}</li>
 {% else %}<li class="empty">Nada concluído ainda.</li>{% endfor %}

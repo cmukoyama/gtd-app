@@ -358,3 +358,14 @@ def test_multiple_contexts(client):
     post(client, "/contexts/remove", t, name="foco")
     html = client.get("/next").get_data(as_text=True)
     assert "@foco" not in html and "@trabalho" in html and "@deck" in html
+
+
+def test_done_list_and_reopen(client):
+    t = login(client)
+    a = _next_item(client, t, "concluída sem querer")
+    assert "/done" in client.get("/next").get_data(as_text=True)
+    post(client, f"/items/{a}/set", t, status="done")
+    assert "concluída sem querer" in client.get("/done").get_data(as_text=True)
+    post(client, f"/items/{a}/set", t, status="next")
+    assert "concluída sem querer" in client.get("/next").get_data(as_text=True)
+    assert "concluída sem querer" not in client.get("/done").get_data(as_text=True)
