@@ -76,3 +76,5 @@ button.check.done { background:var(--acc); } button.check.done::after { content:
 .ctxpick label.cx input:checked + span { background:var(--cbg); color:var(--cfg); border:1px solid color-mix(in srgb, var(--cfg) 55%, transparent); box-shadow:0 0 0 2px var(--acc); }
 .ctxpick label.cx input:focus-visible + span { outline:2px solid var(--acc); }
 .ctxpick .ctxnew { flex:1 1 9rem; min-width:0; }
+.flash.undo { display:flex; align-items:center; justify-content:space-between; gap:.8rem; }
+.flash.undo button { background:var(--acc); color:#fff; border-color:var(--acc); font-weight:600; padding:.4rem .9rem; }

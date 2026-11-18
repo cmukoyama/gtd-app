@@ -616,12 +616,18 @@ def create_app(config=None):
         if status not in STATUSES:
             abort(400)
         done_at = now() if status == "done" else None
+        prev = db().execute("SELECT status, title FROM items WHERE id=?",
+                            (item_id,)).fetchone()
         cur = db().execute(
             "UPDATE items SET status=?, completed_at=? WHERE id=?",
             (status, done_at, item_id))
         if cur.rowcount == 0:
             abort(404)
         db().commit()
+        if status == "done" and prev and prev["status"] != "done":
+            # aviso com botão "Desfazer" (volta ao estado anterior)
+            flash(f"Concluída: {prev['title'][:60]}",
+                  f"undo:{item_id}:{prev['status']}")
         return back()
 
     @app.post("/items/<int:item_id>/delete")

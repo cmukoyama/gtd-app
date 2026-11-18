@@ -369,3 +369,16 @@ def test_done_list_and_reopen(client):
     post(client, f"/items/{a}/set", t, status="next")
     assert "concluída sem querer" in client.get("/next").get_data(as_text=True)
     assert "concluída sem querer" not in client.get("/done").get_data(as_text=True)
+
+
+def test_undo_after_complete(client):
+    t = login(client)
+    a = _next_item(client, t, "tarefa para desfazer")
+    r = post(client, f"/items/{a}/set", t, status="done", next="/next")
+    html = r.get_data(as_text=True)
+    assert "Desfazer" in html and 'name="status" value="next"' in html
+    assert "tarefa para desfazer" in html
+    post(client, f"/items/{a}/set", t, status="next", next="/next")
+    assert "tarefa para desfazer" in client.get("/next").get_data(as_text=True)
+    # o aviso aparece uma vez só
+    assert "Desfazer" not in client.get("/next").get_data(as_text=True)
