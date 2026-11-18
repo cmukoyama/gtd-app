@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
   <link rel="icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
   <meta name="apple-mobile-web-app-title" content="GTD">
@@ -18,7 +18,7 @@
   'projects': '<path d="M5 9h15M4 15h15M10.5 3.5l-2 17M16.5 3.5l-2 17"/>',
   'waiting': '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   'someday': '<path d="M20.5 13.5A8.5 8.5 0 1110.5 3.5a6.5 6.5 0 0010 10z"/>',
-  'done': '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>',
+  'done': '<path d="M4 12.5l5 5L20 6.5"/>',
   'review': '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>',
   'daily': '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/>'
 } %}
@@ -35,13 +35,26 @@
 <div class="app">
 <aside class="side">
   <div class="brand">GTD Mukoyama</div>
-  <nav>
-    {% for ep, label, icon, n in nav_items %}
+  {% macro navlink(ep, label, icon, n) %}
     <a href="{{ url_for(ep) }}" class="{{ 'on' if request.endpoint == ep or (ep == 'projects' and request.endpoint == 'project_view') else '' }}">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">{{ icons[icon]|safe }}</svg>
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">{{ icons[icon]|safe }}</svg>
       <span class="lbl">{{ label }}</span>{% if n %}<span class="cnt">{{ n }}</span>{% endif %}
     </a>
-    {% endfor %}
+  {% endmacro %}
+  {% set more_eps = nav_items[4:]|map(attribute=0)|list %}
+  <nav id="nav">
+    {% for ep, label, icon, n in nav_items[:4] %}{{ navlink(ep, label, icon, n) }}{% endfor %}
+    <button type="button" class="morebtn {{ 'on' if request.endpoint in more_eps else '' }}" aria-label="Mais opções" aria-expanded="false"
+            onclick="var n=document.getElementById('nav');var o=n.classList.toggle('open');this.setAttribute('aria-expanded',o)">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+      <span class="lbl">Mais</span>
+    </button>
+    <div class="morepanel">
+      {% for ep, label, icon, n in nav_items[4:] %}{{ navlink(ep, label, icon, n) }}{% endfor %}
+      <form method="post" action="{{ url_for('logout') }}" class="mlogout">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="link">Sair</button>
+      </form>
+    </div>
   </nav>
   <form method="post" action="{{ url_for('logout') }}" class="logout">
     <input type="hidden" name="csrf" value="{{ csrf_token() }}">
