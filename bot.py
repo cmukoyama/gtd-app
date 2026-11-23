@@ -71,7 +71,7 @@ TOOLS = [
 
 def register_bot(app, db, local_today, now, ctx_list, tz):
     cfg = app.config
-    for k in ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "TELEGRAM_WEBHOOK_SECRET",
+    for k in ("VERTICE_URL", "VERTICE_BOT_TOKEN", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "TELEGRAM_WEBHOOK_SECRET",
               "CRON_SECRET", "ANTHROPIC_API_KEY"):
         cfg.setdefault(k, os.environ.get(k, ""))
     cfg.setdefault("ANTHROPIC_MODEL", os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-5-5"))
@@ -84,6 +84,14 @@ def register_bot(app, db, local_today, now, ctx_list, tz):
             return fake(url, payload, headers or {})
         req = urllib.request.Request(url, data=json.dumps(payload).encode(),
                                      headers={"Content-Type": "application/json", **(headers or {})})
+        with urllib.request.urlopen(req, timeout=50) as r:
+            return json.loads(r.read())
+
+    def http_get(url, headers):
+        fake = cfg.get("BOT_HTTP")
+        if fake:
+            return fake(url, None, headers)
+        req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=50) as r:
             return json.loads(r.read())
 
@@ -362,5 +370,33 @@ def register_bot(app, db, local_today, now, ctx_list, tz):
             text = fallback(kind)
         send(text, task_buttons(today_items()) if kind != "fechamento" else None)
         return jsonify(sent=True, kind=kind)
+
+    # ---------- relatórios ----------
+    @app.route("/telegram/relatorio/vertice", methods=["GET", "POST"])
+    def relatorio_vertice():
+        """Chamado às 9h (dias úteis): busca o resumo pronto no Vértice e repassa."""
+        cron_auth()
+        if not cfg["VERTICE_URL"] or not cfg["VERTICE_BOT_TOKEN"]:
+            abort(404)
+        try:
+            r = http_get(cfg["VERTICE_URL"].rstrip("/") + "/api/cron/resumo-bot",
+                         {"Authorization": f"Bearer {cfg['VERTICE_BOT_TOKEN']}"})
+            text = r.get("texto") or "Vértice respondeu sem texto."
+        except Exception as e:
+            text = f"⚠️ Não consegui ler o Vértice agora ({type(e).__name__})."
+        send(text)
+        return jsonify(sent=True)
+
+    @app.post("/telegram/encaminhar")
+    def encaminhar():
+        """Recebe um texto pronto (ex.: relatório do Insta) e manda no Telegram."""
+        cron_auth()
+        body = request.get_json(silent=True) or {}
+        text = (body.get("texto") or "").strip()
+        if not text:
+            abort(400)
+        for i in range(0, len(text), 4000):   # limite do Telegram por mensagem
+            send(text[i:i + 4000])
+        return jsonify(sent=True)
 
     app.bot_slot = slot   # exposto para testes
