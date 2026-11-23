@@ -63,3 +63,10 @@ e conversa via Claude quando `ANTHROPIC_API_KEY` está definida. Código em `bot
 
 Comandos: `/hoje` (lista com botões ✅ e ➡️ amanhã), `/feito 12`, `/inbox texto`.
 Texto livre vai para o Claude, que usa as ferramentas do GTD (listar, criar, concluir, planejar o dia).
+
+### Relatórios
+
+- **Vértice (9h)**: defina `VERTICE_URL` (ex.: `https://vertice-dranataliamedeiros.vercel.app`) e
+  `VERTICE_BOT_TOKEN` (o mesmo valor de `BOT_API_TOKEN` no Vértice). No cron-job.org, crie um job
+  `GET /telegram/relatorio/vertice` às 9h00, dias úteis, com o mesmo cabeçalho `Authorization: Bearer CRON_SECRET`.
+- **Encaminhar texto pronto**: `POST /telegram/encaminhar` com `{"texto": "..."}` e o mesmo cabeçalho.

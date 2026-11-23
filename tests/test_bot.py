@@ -106,3 +106,26 @@ def test_tick_requires_token_and_window(make):
     assert slot(datetime(2026, 11, 22, 10, 30)) is None   # domingo
     r = c.get("/telegram/tick?token=cs&force=checkin").get_json()
     assert r["sent"] and "Nada em Hoje" in http.sent()[-1]
+
+
+def test_relatorio_vertice_repassa_texto(make, tmp_path):
+    app, c, http = make()
+    app.config.update(VERTICE_URL="https://v", VERTICE_BOT_TOKEN="vt")
+
+    def fake(url, payload, headers):
+        http.calls.append((url, payload))
+        if url == "https://v/api/cron/resumo-bot":
+            assert headers["Authorization"] == "Bearer vt"
+            return {"texto": "📊 Vértice — resumo do dia"}
+        return {"ok": True}
+    app.config["BOT_HTTP"] = fake
+    assert c.get("/telegram/relatorio/vertice").status_code == 401
+    assert c.get("/telegram/relatorio/vertice?token=cs").get_json()["sent"]
+    assert http.sent()[-1] == "📊 Vértice — resumo do dia"
+
+
+def test_encaminhar_divide_texto_longo(make):
+    _, c, http = make()
+    r = c.post("/telegram/encaminhar?token=cs", json={"texto": "a" * 4500})
+    assert r.status_code == 200
+    assert [len(t) for t in http.sent()] == [4000, 500]
