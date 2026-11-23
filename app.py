@@ -232,7 +232,7 @@ def create_app(config=None):
 
     @app.before_request
     def check_csrf():
-        if request.method == "POST":
+        if request.method == "POST" and not request.path.startswith("/telegram/"):
             sent = request.form.get("csrf", "")
             if not hmac.compare_digest(sent, session.get("csrf", "")):
                 abort(400, "CSRF inválido")
@@ -798,6 +798,9 @@ def create_app(config=None):
         db().commit()
         flash("Revisão semanal registrada.")
         return redirect(url_for("review"))
+
+    from bot import register_bot
+    register_bot(app, db, local_today, now, ctx_list, TZ)
 
     return app
 
