@@ -42,3 +42,24 @@ O app recusa iniciar sem `APP_PASSWORD` e `SECRET_KEY`. Use um banco/branch do N
    Sem `API_TOKEN` o endpoint responde 404.
 3. Um Atalho do iPhone lê esse JSON e recria a lista "Hoje" no app Lembretes, que
    pode ser exibida pelo widget de Lembretes na tela de bloqueio.
+
+## Assistente no Telegram
+
+O bot lê e altera as tarefas do GTD, faz check-ins de hora em hora (8h30–17h30, dias úteis)
+e conversa via Claude quando `ANTHROPIC_API_KEY` está definida. Código em `bot.py`.
+
+1. No Telegram, fale com **@BotFather** → `/newbot` → guarde o token.
+2. No Vercel, defina as variáveis e faça redeploy:
+   - `TELEGRAM_BOT_TOKEN`: token do BotFather;
+   - `TELEGRAM_WEBHOOK_SECRET` e `CRON_SECRET`: textos aleatórios longos (só letras, números, `_` e `-`);
+   - `ANTHROPIC_API_KEY`: chave da API do Claude (opcional; sem ela só comandos e botões);
+   - `TELEGRAM_CHAT_ID`: deixe vazio por enquanto.
+3. Abra `https://SEU-APP/telegram/setup?token=CRON_SECRET` para registrar o webhook.
+4. Mande `/start` para o bot: ele responde o seu chat id. Coloque em `TELEGRAM_CHAT_ID` e faça redeploy.
+   O bot só atende esse chat.
+5. Em cron-job.org, crie um job `GET https://SEU-APP/telegram/tick` com o cabeçalho
+   `Authorization: Bearer CRON_SECRET`, fuso `America/Sao_Paulo`, nos minutos 30 das 8h às 17h,
+   de segunda a sexta. O próprio endpoint decide: 8h30 plano do dia, 17h30 fechamento, demais check-in.
+
+Comandos: `/hoje` (lista com botões ✅ e ➡️ amanhã), `/feito 12`, `/inbox texto`.
+Texto livre vai para o Claude, que usa as ferramentas do GTD (listar, criar, concluir, planejar o dia).
