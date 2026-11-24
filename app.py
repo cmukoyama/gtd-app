@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS items (
     waiting_on TEXT NOT NULL DEFAULT '',
     minutes INTEGER,
     focus_on TEXT,
+    priority INTEGER NOT NULL DEFAULT 2,
     created_at TEXT NOT NULL,
     completed_at TEXT
 );
@@ -155,13 +156,14 @@ class Db:
         if self.pg:
             self.conn.execute("ALTER TABLE items ADD COLUMN IF NOT EXISTS minutes INTEGER")
             self.conn.execute("ALTER TABLE items ADD COLUMN IF NOT EXISTS focus_on TEXT")
+            self.conn.execute("ALTER TABLE items ADD COLUMN IF NOT EXISTS priority "
+                              "INTEGER NOT NULL DEFAULT 2")
         else:
             cols = {r["name"] for r in self.conn.execute("PRAGMA table_info(items)")}
-            for name in ("minutes", "focus_on"):
+            for name, typ in (("minutes", "INTEGER"), ("focus_on", "TEXT"),
+                              ("priority", "INTEGER NOT NULL DEFAULT 2")):
                 if name not in cols:
-                    self.conn.execute(
-                        f"ALTER TABLE items ADD COLUMN {name} "
-                        + ("INTEGER" if name == "minutes" else "TEXT"))
+                    self.conn.execute(f"ALTER TABLE items ADD COLUMN {name} {typ}")
         # checklists padrão: criados uma única vez (apagar um item não o recria)
         cur = self.execute(
             "INSERT INTO meta (k, v) VALUES ('checklists_seeded', '1') "
@@ -335,6 +337,13 @@ def create_app(config=None):
             return None
         return v if v in MINUTES else None
 
+    def clean_priority(value):
+        try:
+            v = int(value)
+        except (TypeError, ValueError):
+            return 2
+        return v if v in (1, 2, 3) else 2
+
     def project_id_or_none(value):
         try:
             pid = int(value)
@@ -390,6 +399,7 @@ def create_app(config=None):
         due = clean_date(request.form.get("due"))
         waiting_on = clean(request.form.get("waiting_on"), 100)
         minutes = clean_minutes(request.form.get("minutes"))
+        prio = clean_priority(request.form.get("priority"))
 
         if decision == "next":
             status = "next"
@@ -406,9 +416,9 @@ def create_app(config=None):
         done_at = now() if status == "done" else None
         db().execute(
             """UPDATE items SET title=?, notes=?, status=?, context=?, project_id=?,
-               due=?, waiting_on=?, minutes=?, completed_at=? WHERE id=?""",
-            (title, notes, status, ctx, pid, due, waiting_on, minutes, done_at,
-             item_id))
+               due=?, waiting_on=?, minutes=?, priority=?, completed_at=? WHERE id=?""",
+            (title, notes, status, ctx, pid, due, waiting_on, minutes, prio,
+             done_at, item_id))
         db().commit()
         return back()
 
@@ -441,12 +451,13 @@ def create_app(config=None):
         ctx = "" if status == "someday" else form_context()
         db().execute(
             """UPDATE items SET title=?, notes=?, status=?, context=?, project_id=?,
-               due=?, waiting_on=?, minutes=? WHERE id=?""",
+               due=?, waiting_on=?, minutes=?, priority=? WHERE id=?""",
             (title, clean(request.form.get("notes"), 4000), status, ctx,
              project_id_or_none(request.form.get("project_id")),
              clean_date(request.form.get("due")),
              clean(request.form.get("waiting_on"), 100),
-             clean_minutes(request.form.get("minutes")), item_id))
+             clean_minutes(request.form.get("minutes")),
+             clean_priority(request.form.get("priority")), item_id))
         db().commit()
         return back()
 
@@ -499,7 +510,7 @@ def create_app(config=None):
                   LEFT JOIN projects p ON p.id = i.project_id
                   WHERE i.status='next' AND """
         items = db().execute(
-            base + "i.focus_on = ? ORDER BY (i.due IS NULL), i.due, i.id", (t,)
+            base + "i.focus_on = ? ORDER BY i.priority, (i.due IS NULL), i.due, i.id", (t,)
         ).fetchall()
         carry = db().execute(
             base + "i.focus_on IS NOT NULL AND i.focus_on < ? ORDER BY i.focus_on, i.id",
@@ -522,7 +533,7 @@ def create_app(config=None):
             """SELECT i.*, p.title AS project_title FROM items i
                LEFT JOIN projects p ON p.id = i.project_id
                WHERE i.status='next' AND i.focus_on IS NOT NULL AND i.focus_on <= ?
-               ORDER BY (i.focus_on < ?), (i.due IS NULL), i.due, i.id""",
+               ORDER BY (i.focus_on < ?), i.priority, (i.due IS NULL), i.due, i.id""",
             (t, t)).fetchall()
         tasks = []
         for i in rows:
@@ -534,7 +545,7 @@ def create_app(config=None):
             text = i["title"] + (f" ({', '.join(bits)})" if bits else "")
             tasks.append({"id": i["id"], "title": i["title"], "text": text,
                           "context": i["context"], "contexts": ctx_list(i["context"]),
-                          "minutes": i["minutes"],
+                          "minutes": i["minutes"], "priority": i["priority"],
                           "due": i["due"], "project": i["project_title"]})
         resp = jsonify({"date": t, "count": len(tasks), "tasks": tasks,
                         "lines": [x["text"] for x in tasks],
@@ -566,16 +577,19 @@ def create_app(config=None):
         if tempo:
             sql += " AND i.minutes IS NOT NULL AND i.minutes <= ?"
             args.append(tempo)
-        # favoritas (★ de hoje) primeiro; depois por prazo e ordem de criação
+        prio = clean_priority(request.args.get("prio")) if request.args.get("prio") else None
+        if prio == 1:
+            sql += " AND i.priority = 1"
+        # favoritas (★ de hoje) primeiro; depois prioridade, prazo e ordem de criação
         sql += (" ORDER BY (CASE WHEN i.focus_on = ? THEN 0 ELSE 1 END),"
-                " (i.due IS NULL), i.due, i.id")
+                " i.priority, (i.due IS NULL), i.due, i.id")
         args.append(local_today().isoformat())
         items = db().execute(sql, args).fetchall()
         if ctx == "-":
             items = [i for i in items if not i["context"]]
         elif ctx:
             items = [i for i in items if ctx in ctx_list(i["context"])]
-        return render_template("next.html", items=items, ctx=ctx, tempo=tempo,
+        return render_template("next.html", items=items, ctx=ctx, tempo=tempo, prio=prio,
                                minutes_options=MINUTES,
                                contexts=contexts(), projects=active_projects())
 

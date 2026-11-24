@@ -27,6 +27,11 @@
       <option value="">Tempo?</option>
       {% for m in [5, 15, 30, 60, 120] %}<option value="{{ m }}" {{ 'selected' if false else '' }}>{{ m }} min</option>{% endfor %}
     </select>
+    <select name="priority" title="Prioridade">
+      <option value="1">Prioridade: Alta</option>
+      <option value="2" selected>Prioridade: Média</option>
+      <option value="3">Prioridade: Baixa</option>
+    </select>
     <input name="waiting_on" placeholder="Aguardando de quem?">
   </div>
   <textarea name="notes" rows="1" placeholder="Notas"></textarea>

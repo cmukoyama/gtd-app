@@ -17,6 +17,7 @@
       {% if i.due %}<span class="due {{ 'late' if i.due < today else ('now' if i.due == today else 'later') }}">
         <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
         {{ i.due[8:10] }}/{{ i.due[5:7] }}</span>{% endif %}
+      {% if i.priority == 1 %}<span class="prio hi">▲ Alta</span>{% elif i.priority == 3 %}<span class="prio lo">▽ Baixa</span>{% endif %}
       {% if i.minutes %}<span>{{ i.minutes }} min</span>{% endif %}
       {% if i.waiting_on %}<span>de {{ i.waiting_on }}</span>{% endif %}
       {% for c in i.context|ctx_list %}<span class="ctx {{ c|ctx_class }}">@{{ c }}</span>{% endfor %}

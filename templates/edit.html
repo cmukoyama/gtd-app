@@ -22,6 +22,9 @@
       <option value="">Tempo?</option>
       {% for m in [5, 15, 30, 60, 120] %}<option value="{{ m }}" {{ 'selected' if i.minutes == m else '' }}>{{ m }} min</option>{% endfor %}
     </select>
+    <select name="priority" title="Prioridade">
+      {% for v, n in [(1, 'Alta'), (2, 'Média'), (3, 'Baixa')] %}<option value="{{ v }}" {{ 'selected' if i.priority == v else '' }}>Prioridade: {{ n }}</option>{% endfor %}
+    </select>
     <input name="waiting_on" value="{{ i.waiting_on }}" placeholder="Aguardando de quem?">
   </div>
   <textarea name="notes" rows="3" placeholder="Notas">{{ i.notes }}</textarea>

@@ -382,3 +382,26 @@ def test_undo_after_complete(client):
     assert "tarefa para desfazer" in client.get("/next").get_data(as_text=True)
     # o aviso aparece uma vez só
     assert "Desfazer" not in client.get("/next").get_data(as_text=True)
+
+
+def test_priority_order_and_filter(client):
+    t = login(client)
+    a = _next_item(client, t, "media")
+    b = _next_item(client, t, "baixa")
+    c = _next_item(client, t, "alta")
+    for iid, prio, title in ((b, "3", "baixa"), (c, "1", "alta")):
+        client.post(f"/items/{iid}/edit", data={
+            "csrf": t, "title": title, "status": "next", "priority": prio, "next": "/next"})
+    html = client.get("/next").get_data(as_text=True)
+    assert html.index(">alta<") < html.index(">media<") < html.index(">baixa<")
+    assert "▲ Alta" in html and "▽ Baixa" in html
+    only = client.get("/next?prio=1").get_data(as_text=True)
+    assert ">alta<" in only and ">media<" not in only and ">baixa<" not in only
+    # favoritar tem precedência sobre a prioridade
+    post(client, f"/items/{b}/today", t, on="1", next="/next")
+    html = client.get("/next").get_data(as_text=True)
+    assert html.index(">baixa<") < html.index(">alta<")
+    # prioridade inválida cai em Média
+    client.post(f"/items/{a}/edit", data={
+        "csrf": t, "title": "media", "status": "next", "priority": "9", "next": "/next"})
+    assert 'value="2" selected' in client.get(f"/items/{a}/edit").get_data(as_text=True)

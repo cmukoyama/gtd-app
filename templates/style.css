@@ -91,3 +91,4 @@ button.check.done { background:var(--acc); } button.check.done::after { content:
 .ctxpick .ctxnew { flex:1 1 9rem; min-width:0; }
 .flash.undo { display:flex; align-items:center; justify-content:space-between; gap:.8rem; }
 .flash.undo button { background:var(--acc); color:#fff; border-color:var(--acc); font-weight:600; padding:.4rem .9rem; }
+.prio { font-weight:700; } .prio.hi { color:var(--red); } .prio.lo { color:var(--mut); }
