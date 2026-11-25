@@ -181,6 +181,13 @@ class Db:
         if cur.rowcount == 1:
             for name in DEFAULT_CONTEXTS:
                 self.execute("INSERT INTO contexts (name) VALUES (?) ON CONFLICT DO NOTHING", (name,))
+        # correção única: ação com "aguardando de quem" preenchido é Aguardando
+        cur = self.execute(
+            "INSERT INTO meta (k, v) VALUES ('waiting_synced', '1') "
+            "ON CONFLICT (k) DO NOTHING")
+        if cur.rowcount == 1:
+            self.execute("UPDATE items SET status='waiting' "
+                         "WHERE status='next' AND waiting_on != ''")
         self.conn.commit()
 
 
@@ -413,6 +420,8 @@ def create_app(config=None):
             status = "done"
         else:
             abort(400, "Decisão inválida")
+        if status == "next" and waiting_on:  # espera por alguém = Aguardando
+            status = "waiting"
         done_at = now() if status == "done" else None
         db().execute(
             """UPDATE items SET title=?, notes=?, status=?, context=?, project_id=?,
@@ -449,6 +458,8 @@ def create_app(config=None):
         if status not in ("inbox", "next", "waiting", "someday"):
             abort(400)
         ctx = "" if status == "someday" else form_context()
+        if status == "next" and clean(request.form.get("waiting_on"), 100):
+            status = "waiting"  # espera por alguém = Aguardando
         db().execute(
             """UPDATE items SET title=?, notes=?, status=?, context=?, project_id=?,
                due=?, waiting_on=?, minutes=?, priority=? WHERE id=?""",

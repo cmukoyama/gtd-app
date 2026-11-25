@@ -416,3 +416,35 @@ def test_priority_quick_change(client):
     html = client.get("/next").get_data(as_text=True)
     assert "prio p1" in html and "▲ Alta" in html
     assert client.post("/items/999/priority", data={"csrf": t, "priority": "1"}).status_code == 404
+
+
+def test_waiting_on_moves_to_waiting(client):
+    t = login(client)
+    a = _next_item(client, t, "pedir ao Marcio")
+    client.post(f"/items/{a}/edit", data={
+        "csrf": t, "title": "pedir ao Marcio", "status": "next",
+        "waiting_on": "Marcio", "next": "/next"})
+    assert "pedir ao Marcio" in client.get("/waiting").get_data(as_text=True)
+    assert "pedir ao Marcio" not in client.get("/next").get_data(as_text=True)
+    # sem "aguardando de quem", continua em Próximas
+    b = _next_item(client, t, "fazer sozinho")
+    assert "fazer sozinho" in client.get("/next").get_data(as_text=True)
+
+
+def test_waiting_migration_one_time(tmp_path):
+    import sqlite3
+    cfg = {"DB_PATH": str(tmp_path / "old.db"), "DATABASE_URL": "", "APP_PASSWORD": "pw",
+           "SECRET_KEY": "k", "SESSION_COOKIE_SECURE": False}
+    c = create_app(cfg).test_client()
+    login(c)
+    c.get("/next")  # inicializa o banco
+    con = sqlite3.connect(cfg["DB_PATH"])
+    con.execute("DELETE FROM meta WHERE k='waiting_synced'")
+    con.execute("INSERT INTO items (title,status,waiting_on,created_at) VALUES ('a','next','Ana','2026-01-01')")
+    con.execute("INSERT INTO items (title,status,waiting_on,created_at) VALUES ('b','next','','2026-01-01')")
+    con.commit(); con.close()
+    c2 = create_app(cfg).test_client()
+    login(c2)
+    c2.get("/next")
+    con = sqlite3.connect(cfg["DB_PATH"])
+    assert dict(con.execute("SELECT title,status FROM items")) == {"a": "waiting", "b": "next"}
