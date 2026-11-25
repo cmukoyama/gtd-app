@@ -552,6 +552,18 @@ def create_app(config=None):
                         "titles": [x["title"] for x in tasks]})
         return resp
 
+    @app.post("/items/<int:item_id>/priority")
+    @login_required
+    def item_priority(item_id):
+        cur = db().execute("UPDATE items SET priority=? WHERE id=?",
+                           (clean_priority(request.form.get("priority")), item_id))
+        if cur.rowcount == 0:
+            abort(404)
+        db().commit()
+        if request.headers.get("X-Requested-With") == "fetch":
+            return "", 204
+        return back()
+
     @app.post("/items/<int:item_id>/today")
     @login_required
     def item_today(item_id):

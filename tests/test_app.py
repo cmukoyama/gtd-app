@@ -405,3 +405,14 @@ def test_priority_order_and_filter(client):
     client.post(f"/items/{a}/edit", data={
         "csrf": t, "title": "media", "status": "next", "priority": "9", "next": "/next"})
     assert 'value="2" selected' in client.get(f"/items/{a}/edit").get_data(as_text=True)
+
+
+def test_priority_quick_change(client):
+    t = login(client)
+    a = _next_item(client, t, "mudar rápido")
+    r = client.post(f"/items/{a}/priority", data={"csrf": t, "priority": "1"},
+                    headers={"X-Requested-With": "fetch"})
+    assert r.status_code == 204
+    html = client.get("/next").get_data(as_text=True)
+    assert "prio p1" in html and "▲ Alta" in html
+    assert client.post("/items/999/priority", data={"csrf": t, "priority": "1"}).status_code == 404
